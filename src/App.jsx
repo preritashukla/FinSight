@@ -1,4 +1,8 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
+import {
+  PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip, Legend,
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip
+} from 'recharts';
 
 const Sidebar = ({ onAddExpense }) => {
   const navItems = [
@@ -188,6 +192,140 @@ const TransactionList = ({ expenses }) => {
   );
 };
 
+const CHART_COLORS = ['#4f46e5', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4'];
+
+const CategorySpendingChart = ({ expenses }) => {
+  const data = useMemo(() => {
+    const categoryTotals = expenses.reduce((acc, exp) => {
+      acc[exp.category] = (acc[exp.category] || 0) + exp.amount;
+      return acc;
+    }, {});
+
+    return Object.keys(categoryTotals).map(name => ({
+      name,
+      value: categoryTotals[name]
+    })).sort((a, b) => b.value - a.value);
+  }, [expenses]);
+
+  if (data.length === 0) return null;
+
+  return (
+    <div className="chart-container">
+      <h3>Spending by Category</h3>
+      <div className="chart-wrapper">
+        <ResponsiveContainer width="100%" height={300}>
+          <PieChart>
+            <Pie
+              data={data}
+              cx="50%"
+              cy="50%"
+              innerRadius={60}
+              outerRadius={80}
+              paddingAngle={5}
+              dataKey="value"
+            >
+              {data.map((entry, index) => (
+                <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
+              ))}
+            </Pie>
+            <Tooltip
+              contentStyle={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-color)', borderRadius: '8px' }}
+              itemStyle={{ color: 'var(--text-primary)' }}
+            />
+            <Legend verticalAlign="bottom" height={36}/>
+          </PieChart>
+        </ResponsiveContainer>
+      </div>
+    </div>
+  );
+};
+
+const MonthlyExpensesChart = ({ expenses }) => {
+  const data = useMemo(() => {
+    if (!expenses || expenses.length === 0) return [];
+
+    const monthlyTotals = expenses.reduce((acc, exp) => {
+      if (!exp.date) return acc;
+
+      // Extract only numeric components from the date string
+      const nums = String(exp.date).match(/\d+/g);
+      if (!nums || nums.length < 2) return acc;
+
+      let year, monthIdx, day;
+
+      if (nums.length >= 3) {
+        // Assume YYYY-MM-DD or standard numeric parts
+        // Handle cases where year might be weirdly concatenated
+        let yStr = nums[0];
+        if (yStr.length > 4) yStr = yStr.slice(-4);
+        year = parseInt(yStr, 10);
+        monthIdx = parseInt(nums[1], 10) - 1;
+        day = parseInt(nums[2], 10);
+      } else {
+        year = parseInt(nums[0], 10);
+        monthIdx = parseInt(nums[1], 10) - 1;
+        day = 1;
+      }
+
+      // Final sanitization of the date
+      if (year < 100) year += 2000;
+      if (year > 2100) year = new Date().getFullYear(); // Fallback for crazy years
+      
+      const date = new Date(year, monthIdx, day);
+      if (isNaN(date.getTime())) return acc;
+
+      const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      const monthLabel = monthNames[date.getMonth()];
+      const yearLabel = date.getFullYear();
+      const label = `${monthLabel} ${yearLabel}`;
+      
+      if (!acc[label]) {
+        acc[label] = { label, total: 0, timestamp: new Date(yearLabel, date.getMonth(), 1).getTime() };
+      }
+      acc[label].total += exp.amount;
+      return acc;
+    }, {});
+
+    return Object.values(monthlyTotals)
+      .sort((a, b) => a.timestamp - b.timestamp)
+      .map(({ label, total }) => ({ name: label, amount: total }));
+  }, [expenses]);
+
+  if (data.length === 0) return null;
+
+  return (
+    <div className="chart-container">
+      <h3>Monthly Expenses</h3>
+      <div className="chart-wrapper">
+        <ResponsiveContainer width="100%" height={300}>
+          <BarChart data={data}>
+            <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" vertical={false} />
+            <XAxis 
+              dataKey="name" 
+              axisLine={false} 
+              tickLine={false} 
+              tick={{ fill: 'var(--text-secondary)', fontSize: 12 }} 
+            />
+            <YAxis 
+              axisLine={false} 
+              tickLine={false} 
+              tick={{ fill: 'var(--text-secondary)', fontSize: 12 }}
+              tickFormatter={(value) => `$${value}`}
+            />
+            <Tooltip
+              cursor={{ fill: 'var(--bg-tertiary)', opacity: 0.4 }}
+              contentStyle={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-color)', borderRadius: '8px' }}
+              itemStyle={{ color: 'var(--text-primary)' }}
+              formatter={(value) => [`$${value.toLocaleString()}`, 'Total']}
+            />
+            <Bar dataKey="amount" fill="var(--accent-color)" radius={[4, 4, 0, 0]} />
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+    </div>
+  );
+};
+
 const Dashboard = ({ expenses, onAddExpense }) => {
   const initialBalance = 24562.00;
   const totalExpenses = expenses.reduce((sum, exp) => sum + exp.amount, 0);
@@ -200,7 +338,10 @@ const Dashboard = ({ expenses, onAddExpense }) => {
   return (
     <div className="content">
       <div className="dashboard-header">
-        <h1>Overview Dashboard</h1>
+        <div className="header-text">
+          <h1>Overview Dashboard</h1>
+          <p className="subtitle">Track and manage your financial health</p>
+        </div>
         <button className="btn-primary" onClick={onAddExpense}>
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <line x1="12" y1="5" x2="12" y2="19"></line>
@@ -234,13 +375,30 @@ const Dashboard = ({ expenses, onAddExpense }) => {
         />
       </div>
 
+      {expenses.length > 0 && (
+        <div className="charts-grid">
+          <CategorySpendingChart expenses={expenses} />
+          <MonthlyExpensesChart expenses={expenses} />
+        </div>
+      )}
+
       <TransactionList expenses={expenses} />
     </div>
   );
 };
 
 function App() {
-  const [expenses, setExpenses] = useState([]);
+  const [expenses, setExpenses] = useState([
+    { id: 1, amount: 45.50, category: 'Food & Drink', date: '2024-03-12', note: 'Lunch at Joe\'s' },
+    { id: 2, amount: 1200.00, category: 'Housing', date: '2024-03-01', note: 'Monthly Rent' },
+    { id: 3, amount: 65.00, category: 'Transport', date: '2024-03-15', note: 'Fuel' },
+    { id: 4, amount: 85.20, category: 'Entertainment', date: '2024-03-20', note: 'Movie night' },
+    { id: 5, amount: 210.00, category: 'Shopping', date: '2024-03-22', note: 'New clothes' },
+    { id: 6, amount: 55.00, category: 'Utilities', date: '2024-03-25', note: 'Internet' },
+    { id: 7, amount: 42.00, category: 'Food & Drink', date: '2024-02-12', note: 'Groceries' },
+    { id: 8, amount: 1200.00, category: 'Housing', date: '2024-02-01', note: 'Monthly Rent' },
+    { id: 9, amount: 150.00, category: 'Transport', date: '2024-02-18', note: 'Car repair' },
+  ]);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   const addExpense = (newExpense) => {
