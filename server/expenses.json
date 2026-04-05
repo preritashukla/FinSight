@@ -1,0 +1,79 @@
+[
+  {
+    "id": 1,
+    "amount": 45.5,
+    "category": "Food & Drink",
+    "date": "2024-03-12",
+    "note": "Lunch at Joe's"
+  },
+  {
+    "id": 2,
+    "amount": 1200,
+    "category": "Housing",
+    "date": "2024-03-01",
+    "note": "Monthly Rent"
+  },
+  {
+    "id": 3,
+    "amount": 65,
+    "category": "Transport",
+    "date": "2024-03-15",
+    "note": "Fuel"
+  },
+  {
+    "id": 4,
+    "amount": 85.2,
+    "category": "Entertainment",
+    "date": "2024-03-20",
+    "note": "Movie night"
+  },
+  {
+    "id": 5,
+    "amount": 210,
+    "category": "Shopping",
+    "date": "2024-03-22",
+    "note": "New clothes"
+  },
+  {
+    "id": 6,
+    "amount": 55,
+    "category": "Utilities",
+    "date": "2024-03-25",
+    "note": "Internet"
+  },
+  {
+    "id": 7,
+    "amount": 42,
+    "category": "Food & Drink",
+    "date": "2024-02-12",
+    "note": "Groceries"
+  },
+  {
+    "id": 8,
+    "amount": 1200,
+    "category": "Housing",
+    "date": "2024-02-01",
+    "note": "Monthly Rent"
+  },
+  {
+    "id": 9,
+    "amount": 150,
+    "category": "Transport",
+    "date": "2024-02-18",
+    "note": "Car repair"
+  },
+  {
+    "amount": 25,
+    "category": "Food & Drink",
+    "date": "2026-04-05",
+    "note": "Lunch from dev server",
+    "id": 1775395880780
+  },
+  {
+    "amount": 99,
+    "category": "Food and Drink",
+    "date": "2026-04-05",
+    "note": "PowerShell test",
+    "id": 1775396460279
+  }
+]

@@ -388,21 +388,48 @@ const Dashboard = ({ expenses, onAddExpense }) => {
 };
 
 function App() {
-  const [expenses, setExpenses] = useState([
-    { id: 1, amount: 45.50, category: 'Food & Drink', date: '2024-03-12', note: 'Lunch at Joe\'s' },
-    { id: 2, amount: 1200.00, category: 'Housing', date: '2024-03-01', note: 'Monthly Rent' },
-    { id: 3, amount: 65.00, category: 'Transport', date: '2024-03-15', note: 'Fuel' },
-    { id: 4, amount: 85.20, category: 'Entertainment', date: '2024-03-20', note: 'Movie night' },
-    { id: 5, amount: 210.00, category: 'Shopping', date: '2024-03-22', note: 'New clothes' },
-    { id: 6, amount: 55.00, category: 'Utilities', date: '2024-03-25', note: 'Internet' },
-    { id: 7, amount: 42.00, category: 'Food & Drink', date: '2024-02-12', note: 'Groceries' },
-    { id: 8, amount: 1200.00, category: 'Housing', date: '2024-02-01', note: 'Monthly Rent' },
-    { id: 9, amount: 150.00, category: 'Transport', date: '2024-02-18', note: 'Car repair' },
-  ]);
+  const [expenses, setExpenses] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  const addExpense = (newExpense) => {
-    setExpenses([...expenses, newExpense]);
+  useEffect(() => {
+    const fetchExpenses = async () => {
+      try {
+        setIsLoading(true);
+        const response = await fetch('http://localhost:5000/api/expenses');
+        if (!response.ok) throw new Error('Failed to fetch expenses');
+        const data = await response.json();
+        setExpenses(data);
+      } catch (err) {
+        console.error('Error fetching expenses:', err);
+        setError('Failed to load expenses. Please make sure the server is running.');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchExpenses();
+  }, []);
+
+  const addExpense = async (newExpense) => {
+    try {
+      const response = await fetch('http://localhost:5000/api/expenses', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(newExpense),
+      });
+
+      if (!response.ok) throw new Error('Failed to save expense');
+      
+      const savedExpense = await response.json();
+      setExpenses(prev => [...prev, savedExpense]);
+    } catch (err) {
+      console.error('Error adding expense:', err);
+      alert('Failed to save expense. Please try again.');
+    }
   };
 
   return (
@@ -410,10 +437,21 @@ function App() {
       <Sidebar onAddExpense={() => setIsModalOpen(true)} />
       <div className="main-wrapper">
         <Navbar />
-        <Dashboard
-          expenses={expenses}
-          onAddExpense={() => setIsModalOpen(true)}
-        />
+        {isLoading ? (
+          <div className="content" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}>
+            <div style={{ color: 'var(--text-secondary)' }}>Loading your financial data...</div>
+          </div>
+        ) : error ? (
+          <div className="content" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}>
+            <div style={{ color: 'var(--accent-error)', marginBottom: '1rem' }}>{error}</div>
+            <button className="btn-secondary" onClick={() => window.location.reload()}>Retry</button>
+          </div>
+        ) : (
+          <Dashboard
+            expenses={expenses}
+            onAddExpense={() => setIsModalOpen(true)}
+          />
+        )}
       </div>
       <ExpenseModal
         isOpen={isModalOpen}
