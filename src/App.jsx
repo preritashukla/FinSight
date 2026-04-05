@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import {
   PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip, Legend,
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, AreaChart, Area
 } from 'recharts';
 
 const Sidebar = ({ onAddExpense }) => {
@@ -161,19 +161,25 @@ const ExpenseModal = ({ isOpen, onClose, onAdd }) => {
   );
 };
 
-const TransactionList = ({ expenses }) => {
+const TransactionList = ({ expenses, onClearFilters, hasFilters }) => {
   return (
     <div className="transaction-section">
       <div className="section-header">
-        <h3>Recent Transactions</h3>
-        <button className="view-all">View All</button>
+        <h3>{hasFilters ? 'Filtered Transactions' : 'Recent Transactions'}</h3>
+        {hasFilters ? (
+          <button className="view-all" onClick={onClearFilters}>Clear Filters</button>
+        ) : (
+          <button className="view-all">View All</button>
+        )}
       </div>
       <div className="transaction-list">
         {expenses.length === 0 ? (
-          <div className="empty-state">No transactions yet. Add your first expense!</div>
+          <div className="empty-state">
+            {hasFilters ? "No transactions match your filters." : "No transactions yet. Add your first expense!"}
+          </div>
         ) : (
-          expenses.slice().reverse().map(exp => (
-            <div key={exp.id} className="transaction-item">
+          expenses.slice().reverse().map((exp, idx) => (
+            <div key={exp.id} className="transaction-item" style={{ animationDelay: `${idx * 0.05}s` }}>
               <div className="transaction-icon">
                 {exp.category.charAt(0)}
               </div>
@@ -187,6 +193,103 @@ const TransactionList = ({ expenses }) => {
             </div>
           ))
         )}
+      </div>
+    </div>
+  );
+};
+
+const FilterBar = ({ categoryFilter, setCategoryFilter, startDate, setStartDate, endDate, setEndDate, categories }) => {
+  return (
+    <div className="filter-bar">
+      <div className="filter-group">
+        <label>Category</label>
+        <select value={categoryFilter} onChange={e => setCategoryFilter(e.target.value)}>
+          <option value="All">All Categories</option>
+          {categories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+        </select>
+      </div>
+      <div className="filter-group">
+        <label>From</label>
+        <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} />
+      </div>
+      <div className="filter-group">
+        <label>To</label>
+        <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} />
+      </div>
+      {(categoryFilter !== 'All' || startDate || endDate) && (
+        <button className="clear-filters" onClick={() => {
+          setCategoryFilter('All');
+          setStartDate('');
+          setEndDate('');
+        }}>Reset</button>
+      )}
+    </div>
+  );
+};
+
+const InsightsPanel = ({ expenses }) => {
+  const insights = useMemo(() => {
+    if (expenses.length === 0) return null;
+
+    // Highest category calculation
+    const catTotals = expenses.reduce((acc, ex) => {
+      acc[ex.category] = (acc[ex.category] || 0) + ex.amount;
+      return acc;
+    }, {});
+    
+    if (Object.keys(catTotals).length === 0) return null;
+    
+    const highest = Object.entries(catTotals).reduce((a, b) => a[1] > b[1] ? a : b);
+
+    // MoM Trend (simplified)
+    const now = new Date();
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
+    
+    const currMonthTotal = expenses
+      .filter(ex => {
+        const d = new Date(ex.date);
+        return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
+      })
+      .reduce((sum, ex) => sum + ex.amount, 0);
+
+    const prevMonthTotal = expenses
+      .filter(ex => {
+        const d = new Date(ex.date);
+        const prevMonth = currentMonth === 0 ? 11 : currentMonth - 1;
+        const prevYear = currentMonth === 0 ? currentYear - 1 : currentYear;
+        return d.getMonth() === prevMonth && d.getFullYear() === prevYear;
+      })
+      .reduce((sum, ex) => sum + ex.amount, 0);
+
+    const diff = currMonthTotal - prevMonthTotal;
+    const percentChange = prevMonthTotal !== 0 ? (diff / prevMonthTotal) * 100 : 0;
+
+    return {
+      highest: { name: highest[0], amount: highest[1] },
+      trend: { percent: Math.abs(percentChange).toFixed(1), isUp: diff > 0, diff: Math.abs(diff) }
+    };
+  }, [expenses]);
+
+  if (!insights) return null;
+
+  return (
+    <div className="insights-container">
+      <div className="insight-card highlight">
+        <div className="insight-icon">🔥</div>
+        <div className="insight-details">
+          <span className="insight-label">Top Spending</span>
+          <span className="insight-value">{insights.highest.name}</span>
+          <span className="insight-subtext">${insights.highest.amount.toLocaleString()} total</span>
+        </div>
+      </div>
+      <div className="insight-card">
+        <div className="insight-icon">{insights.trend.isUp ? '📈' : '📉'}</div>
+        <div className="insight-details">
+          <span className="insight-label">Monthly Trend</span>
+          <span className="insight-value">{insights.trend.isUp ? '+' : '-'}{insights.trend.percent}%</span>
+          <span className="insight-subtext">${insights.trend.diff.toLocaleString()} vs last month</span>
+        </div>
       </div>
     </div>
   );
@@ -326,7 +429,17 @@ const MonthlyExpensesChart = ({ expenses }) => {
   );
 };
 
-const Dashboard = ({ expenses, onAddExpense }) => {
+const Dashboard = ({ 
+  expenses, 
+  filteredExpenses, 
+  onAddExpense,
+  categoryFilter,
+  setCategoryFilter,
+  startDate,
+  setStartDate,
+  endDate,
+  setEndDate
+}) => {
   const initialBalance = 24562.00;
   const totalExpenses = expenses.reduce((sum, exp) => sum + exp.amount, 0);
   const currentBalance = initialBalance - totalExpenses;
@@ -334,6 +447,12 @@ const Dashboard = ({ expenses, onAddExpense }) => {
   // Placeholder trends
   const balanceTrend = "3.2%";
   const expenseTrend = expenses.length > 0 ? "8.4%" : "0.0%";
+
+  const categories = useMemo(() => {
+    return Array.from(new Set(expenses.map(ex => ex.category)));
+  }, [expenses]);
+
+  const hasFilters = categoryFilter !== 'All' || startDate || endDate;
 
   return (
     <div className="content">
@@ -360,14 +479,14 @@ const Dashboard = ({ expenses, onAddExpense }) => {
           color="var(--accent-color)"
         />
         <StatCard
-          title="Monthly Expenses"
+          title="Total Expenses"
           value={`$${totalExpenses.toLocaleString(undefined, { minimumFractionDigits: 2 })}`}
           trend={expenseTrend}
           isUp={false}
           color="var(--accent-error)"
         />
         <StatCard
-          title="Savings"
+          title="Monthly Savings"
           value="$8,450.00"
           trend="5.1%"
           isUp={true}
@@ -375,14 +494,36 @@ const Dashboard = ({ expenses, onAddExpense }) => {
         />
       </div>
 
-      {expenses.length > 0 && (
+      <InsightsPanel expenses={expenses} />
+
+      <div className="filter-section">
+        <FilterBar 
+          categoryFilter={categoryFilter}
+          setCategoryFilter={setCategoryFilter}
+          startDate={startDate}
+          setStartDate={setStartDate}
+          endDate={endDate}
+          setEndDate={setEndDate}
+          categories={categories}
+        />
+      </div>
+
+      {filteredExpenses.length > 0 && (
         <div className="charts-grid">
-          <CategorySpendingChart expenses={expenses} />
-          <MonthlyExpensesChart expenses={expenses} />
+          <CategorySpendingChart expenses={filteredExpenses} />
+          <MonthlyExpensesChart expenses={filteredExpenses} />
         </div>
       )}
 
-      <TransactionList expenses={expenses} />
+      <TransactionList 
+        expenses={filteredExpenses} 
+        hasFilters={hasFilters}
+        onClearFilters={() => {
+          setCategoryFilter('All');
+          setStartDate('');
+          setEndDate('');
+        }}
+      />
     </div>
   );
 };
@@ -392,6 +533,20 @@ function App() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  // Filters State
+  const [categoryFilter, setCategoryFilter] = useState('All');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+
+  const filteredExpenses = useMemo(() => {
+    return expenses.filter(exp => {
+      const matchesCategory = categoryFilter === 'All' || exp.category === categoryFilter;
+      const matchesStartDate = !startDate || new Date(exp.date) >= new Date(startDate);
+      const matchesEndDate = !endDate || new Date(exp.date) <= new Date(endDate);
+      return matchesCategory && matchesStartDate && matchesEndDate;
+    });
+  }, [expenses, categoryFilter, startDate, endDate]);
 
   useEffect(() => {
     const fetchExpenses = async () => {
@@ -449,7 +604,14 @@ function App() {
         ) : (
           <Dashboard
             expenses={expenses}
+            filteredExpenses={filteredExpenses}
             onAddExpense={() => setIsModalOpen(true)}
+            categoryFilter={categoryFilter}
+            setCategoryFilter={setCategoryFilter}
+            startDate={startDate}
+            setStartDate={setStartDate}
+            endDate={endDate}
+            setEndDate={setEndDate}
           />
         )}
       </div>
