@@ -1,9 +1,19 @@
-import React, { useState, useEffect, useMemo } from 'react'
+import React, { useState, useEffect, useMemo, useRef } from 'react'
 import {
   PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip, Legend,
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, AreaChart, Area
 } from 'recharts';
 
+// ─── Theme Toggle ───
+const ThemeToggle = ({ theme, onToggle }) => (
+  <div className="theme-toggle" onClick={onToggle} title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}>
+    <div className={`theme-toggle-knob ${theme === 'light' ? 'light' : ''}`}>
+      {theme === 'dark' ? '🌙' : '☀️'}
+    </div>
+  </div>
+);
+
+// ─── Sidebar ───
 const Sidebar = ({ onAddExpense }) => {
   const navItems = [
     { name: 'Dashboard', icon: 'M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z' },
@@ -14,7 +24,13 @@ const Sidebar = ({ onAddExpense }) => {
   return (
     <div className="sidebar">
       <div className="logo">
-        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--accent-color)' }}>
+        <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="url(#logoGrad)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <defs>
+            <linearGradient id="logoGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="#818cf8" />
+              <stop offset="100%" stopColor="#c084fc" />
+            </linearGradient>
+          </defs>
           <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
         </svg>
         Fin<span>Sight</span>
@@ -26,7 +42,7 @@ const Sidebar = ({ onAddExpense }) => {
             className={`nav-item ${index === 0 ? 'active' : ''}`}
             onClick={item.onClick}
           >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d={item.icon} />
             </svg>
             {item.name}
@@ -37,20 +53,29 @@ const Sidebar = ({ onAddExpense }) => {
   );
 };
 
-const Navbar = () => {
+// ─── Navbar ───
+const Navbar = ({ theme, onThemeToggle }) => {
   return (
     <nav className="navbar">
-      <div className="navbar-search">
-        Search transactions, reports...
+      <div className="navbar-left">
+        <div className="navbar-search">
+          🔍 Search transactions, reports...
+        </div>
       </div>
-      <div className="user-profile">
-        <span style={{ color: 'var(--text-secondary)', fontSize: '14px' }}>Welcome back, <strong style={{ color: 'var(--text-primary)' }}>Alex</strong></span>
-        <div className="avatar"></div>
+      <div className="navbar-right">
+        <ThemeToggle theme={theme} onToggle={onThemeToggle} />
+        <div className="user-profile">
+          <span style={{ color: 'var(--text-secondary)', fontSize: '13px' }}>
+            Welcome, <strong style={{ color: 'var(--text-primary)' }}>Alex</strong>
+          </span>
+          <div className="avatar"></div>
+        </div>
       </div>
     </nav>
   );
 };
 
+// ─── Stat Card ───
 const StatCard = ({ title, value, trend, isUp, color }) => {
   return (
     <div className="stat-card" style={{ '--card-accent': color || 'var(--accent-color)' }}>
@@ -70,6 +95,86 @@ const StatCard = ({ title, value, trend, isUp, color }) => {
   );
 };
 
+// ─── Spending Personality Tag ───
+const PERSONALITY_PROFILES = [
+  {
+    tag: 'Impulsive Spender',
+    emoji: '⚡',
+    desc: 'You tend to make frequent, unplanned purchases. Consider setting a daily spending cap.',
+    criteria: (expenses) => {
+      if (expenses.length < 3) return false;
+      const entertainmentAndShopping = expenses.filter(e =>
+        ['Entertainment', 'Shopping'].includes(e.category)
+      );
+      return entertainmentAndShopping.reduce((s, e) => s + e.amount, 0) /
+        expenses.reduce((s, e) => s + e.amount, 0) > 0.35;
+    }
+  },
+  {
+    tag: 'Balanced Saver',
+    emoji: '⚖️',
+    desc: 'Great balance! You manage essential vs discretionary spending wisely.',
+    criteria: (expenses) => {
+      if (expenses.length < 3) return false;
+      const essentials = expenses.filter(e =>
+        ['Housing', 'Utilities', 'Transport'].includes(e.category)
+      );
+      const essentialRatio = essentials.reduce((s, e) => s + e.amount, 0) /
+        expenses.reduce((s, e) => s + e.amount, 0);
+      return essentialRatio > 0.5 && essentialRatio <= 0.8;
+    }
+  },
+  {
+    tag: 'Foodie Enthusiast',
+    emoji: '🍕',
+    desc: 'Food & dining is your top discretionary category. Try meal-prepping to save!',
+    criteria: (expenses) => {
+      if (expenses.length < 2) return false;
+      const food = expenses.filter(e =>
+        e.category === 'Food & Drink' || e.category === 'Food and Drink'
+      );
+      return food.reduce((s, e) => s + e.amount, 0) /
+        expenses.reduce((s, e) => s + e.amount, 0) > 0.25;
+    }
+  },
+  {
+    tag: 'Budget Rookie',
+    emoji: '🌱',
+    desc: 'Just getting started! Keep tracking expenses to build healthy financial habits.',
+    criteria: (expenses) => expenses.length < 5
+  },
+  {
+    tag: 'Smart Planner',
+    emoji: '🧠',
+    desc: 'You spread spending across categories sensibly. Keep up the discipline!',
+    criteria: () => true // fallback
+  }
+];
+
+const SpendingPersonalityTag = ({ expenses }) => {
+  const personality = useMemo(() => {
+    if (expenses.length === 0) return PERSONALITY_PROFILES[3]; // Budget Rookie
+    for (const profile of PERSONALITY_PROFILES) {
+      if (profile.criteria(expenses)) return profile;
+    }
+    return PERSONALITY_PROFILES[4]; // Smart Planner fallback
+  }, [expenses]);
+
+  return (
+    <div className="personality-tag-container">
+      <div className="personality-tag">
+        <span className="personality-emoji">{personality.emoji}</span>
+        <div className="personality-info">
+          <span className="personality-label">Your Spending Personality</span>
+          <span className="personality-name">{personality.tag}</span>
+          <span className="personality-desc">{personality.desc}</span>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ─── Expense Modal ───
 const ExpenseModal = ({ isOpen, onClose, onAdd }) => {
   const [formData, setFormData] = useState({
     amount: '',
@@ -161,6 +266,7 @@ const ExpenseModal = ({ isOpen, onClose, onAdd }) => {
   );
 };
 
+// ─── Transaction List ───
 const TransactionList = ({ expenses, onClearFilters, hasFilters }) => {
   return (
     <div className="transaction-section">
@@ -198,6 +304,7 @@ const TransactionList = ({ expenses, onClearFilters, hasFilters }) => {
   );
 };
 
+// ─── Filter Bar ───
 const FilterBar = ({ categoryFilter, setCategoryFilter, startDate, setStartDate, endDate, setEndDate, categories }) => {
   return (
     <div className="filter-bar">
@@ -227,25 +334,24 @@ const FilterBar = ({ categoryFilter, setCategoryFilter, startDate, setStartDate,
   );
 };
 
+// ─── Insights Panel ───
 const InsightsPanel = ({ expenses }) => {
   const insights = useMemo(() => {
     if (expenses.length === 0) return null;
 
-    // Highest category calculation
     const catTotals = expenses.reduce((acc, ex) => {
       acc[ex.category] = (acc[ex.category] || 0) + ex.amount;
       return acc;
     }, {});
-    
+
     if (Object.keys(catTotals).length === 0) return null;
-    
+
     const highest = Object.entries(catTotals).reduce((a, b) => a[1] > b[1] ? a : b);
 
-    // MoM Trend (simplified)
     const now = new Date();
     const currentMonth = now.getMonth();
     const currentYear = now.getFullYear();
-    
+
     const currMonthTotal = expenses
       .filter(ex => {
         const d = new Date(ex.date);
@@ -295,15 +401,16 @@ const InsightsPanel = ({ expenses }) => {
   );
 };
 
-const CHART_COLORS = ['#4f46e5', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4'];
+// ─── Chart Colors ───
+const CHART_COLORS = ['#818cf8', '#34d399', '#fbbf24', '#fb7185', '#c084fc', '#f472b6', '#22d3ee'];
 
+// ─── Category Pie Chart ───
 const CategorySpendingChart = ({ expenses }) => {
   const data = useMemo(() => {
     const categoryTotals = expenses.reduce((acc, exp) => {
       acc[exp.category] = (acc[exp.category] || 0) + exp.amount;
       return acc;
     }, {});
-
     return Object.keys(categoryTotals).map(name => ({
       name,
       value: categoryTotals[name]
@@ -332,10 +439,10 @@ const CategorySpendingChart = ({ expenses }) => {
               ))}
             </Pie>
             <Tooltip
-              contentStyle={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-color)', borderRadius: '8px' }}
+              contentStyle={{ backgroundColor: 'var(--bg-solid-secondary)', borderColor: 'var(--glass-border)', borderRadius: '10px' }}
               itemStyle={{ color: 'var(--text-primary)' }}
             />
-            <Legend verticalAlign="bottom" height={36}/>
+            <Legend verticalAlign="bottom" height={36} />
           </PieChart>
         </ResponsiveContainer>
       </div>
@@ -343,47 +450,38 @@ const CategorySpendingChart = ({ expenses }) => {
   );
 };
 
+// ─── Monthly Bar Chart ───
 const MonthlyExpensesChart = ({ expenses }) => {
   const data = useMemo(() => {
     if (!expenses || expenses.length === 0) return [];
 
     const monthlyTotals = expenses.reduce((acc, exp) => {
       if (!exp.date) return acc;
-
-      // Extract only numeric components from the date string
       const nums = String(exp.date).match(/\d+/g);
       if (!nums || nums.length < 2) return acc;
 
-      let year, monthIdx, day;
-
+      let year, monthIdx;
       if (nums.length >= 3) {
-        // Assume YYYY-MM-DD or standard numeric parts
-        // Handle cases where year might be weirdly concatenated
         let yStr = nums[0];
         if (yStr.length > 4) yStr = yStr.slice(-4);
         year = parseInt(yStr, 10);
         monthIdx = parseInt(nums[1], 10) - 1;
-        day = parseInt(nums[2], 10);
       } else {
         year = parseInt(nums[0], 10);
         monthIdx = parseInt(nums[1], 10) - 1;
-        day = 1;
       }
 
-      // Final sanitization of the date
       if (year < 100) year += 2000;
-      if (year > 2100) year = new Date().getFullYear(); // Fallback for crazy years
-      
-      const date = new Date(year, monthIdx, day);
+      if (year > 2100) year = new Date().getFullYear();
+
+      const date = new Date(year, monthIdx, 1);
       if (isNaN(date.getTime())) return acc;
 
       const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-      const monthLabel = monthNames[date.getMonth()];
-      const yearLabel = date.getFullYear();
-      const label = `${monthLabel} ${yearLabel}`;
-      
+      const label = `${monthNames[date.getMonth()]} ${date.getFullYear()}`;
+
       if (!acc[label]) {
-        acc[label] = { label, total: 0, timestamp: new Date(yearLabel, date.getMonth(), 1).getTime() };
+        acc[label] = { label, total: 0, timestamp: date.getTime() };
       }
       acc[label].total += exp.amount;
       return acc;
@@ -402,26 +500,33 @@ const MonthlyExpensesChart = ({ expenses }) => {
       <div className="chart-wrapper">
         <ResponsiveContainer width="100%" height={300}>
           <BarChart data={data}>
-            <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" vertical={false} />
-            <XAxis 
-              dataKey="name" 
-              axisLine={false} 
-              tickLine={false} 
-              tick={{ fill: 'var(--text-secondary)', fontSize: 12 }} 
+            <CartesianGrid strokeDasharray="3 3" stroke="var(--glass-border)" vertical={false} />
+            <XAxis
+              dataKey="name"
+              axisLine={false}
+              tickLine={false}
+              tick={{ fill: 'var(--text-secondary)', fontSize: 12 }}
             />
-            <YAxis 
-              axisLine={false} 
-              tickLine={false} 
+            <YAxis
+              axisLine={false}
+              tickLine={false}
               tick={{ fill: 'var(--text-secondary)', fontSize: 12 }}
               tickFormatter={(value) => `$${value}`}
             />
             <Tooltip
               cursor={{ fill: 'var(--bg-tertiary)', opacity: 0.4 }}
-              contentStyle={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-color)', borderRadius: '8px' }}
+              contentStyle={{ backgroundColor: 'var(--bg-solid-secondary)', borderColor: 'var(--glass-border)', borderRadius: '10px' }}
               itemStyle={{ color: 'var(--text-primary)' }}
               formatter={(value) => [`$${value.toLocaleString()}`, 'Total']}
             />
-            <Bar dataKey="amount" fill="var(--accent-color)" radius={[4, 4, 0, 0]} />
+            <Bar dataKey="amount" fill="url(#barGradient)" radius={[6, 6, 0, 0]}>
+              <defs>
+                <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#818cf8" />
+                  <stop offset="100%" stopColor="#c084fc" />
+                </linearGradient>
+              </defs>
+            </Bar>
           </BarChart>
         </ResponsiveContainer>
       </div>
@@ -429,9 +534,213 @@ const MonthlyExpensesChart = ({ expenses }) => {
   );
 };
 
-const Dashboard = ({ 
-  expenses, 
-  filteredExpenses, 
+// ─── Chatbot ───
+const Chatbot = ({ expenses }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [messages, setMessages] = useState([
+    { type: 'bot', text: "Hi! 👋 I'm your FinSight AI assistant. Ask me about your spending, or try one of the quick questions below!" }
+  ]);
+  const [input, setInput] = useState('');
+  const [isTyping, setIsTyping] = useState(false);
+  const messagesEndRef = useRef(null);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages, isTyping]);
+
+  const suggestions = [
+    "Where do I spend the most?",
+    "How can I save money?",
+    "What's my total spending?",
+    "Show my spending personality"
+  ];
+
+  const generateResponse = (question) => {
+    const q = question.toLowerCase();
+    const total = expenses.reduce((s, e) => s + e.amount, 0);
+
+    // Category breakdown
+    const catTotals = expenses.reduce((acc, e) => {
+      acc[e.category] = (acc[e.category] || 0) + e.amount;
+      return acc;
+    }, {});
+    const sortedCategories = Object.entries(catTotals).sort((a, b) => b[1] - a[1]);
+    const topCategory = sortedCategories.length > 0 ? sortedCategories[0] : null;
+
+    // Spending Personality
+    let personality = 'Smart Planner';
+    if (expenses.length < 5) {
+      personality = 'Budget Rookie';
+    } else {
+      const discretionary = expenses.filter(e => ['Entertainment', 'Shopping'].includes(e.category));
+      const discretionaryRatio = discretionary.reduce((s, e) => s + e.amount, 0) / (total || 1);
+      if (discretionaryRatio > 0.35) personality = 'Impulsive Spender';
+      else {
+        const essentials = expenses.filter(e => ['Housing', 'Utilities', 'Transport'].includes(e.category));
+        const essentialRatio = essentials.reduce((s, e) => s + e.amount, 0) / (total || 1);
+        if (essentialRatio > 0.5 && essentialRatio <= 0.8) personality = 'Balanced Saver';
+        else {
+          const food = expenses.filter(e => e.category === 'Food & Drink' || e.category === 'Food and Drink');
+          if (food.reduce((s, e) => s + e.amount, 0) / (total || 1) > 0.25) personality = 'Foodie Enthusiast';
+        }
+      }
+    }
+
+    // "Where do I spend the most?"
+    if (q.includes('spend the most') || q.includes('biggest expense') || q.includes('top spending') || q.includes('highest spending')) {
+      if (expenses.length === 0) return "You haven't added any expenses yet! Start tracking to get insights.";
+      const breakdown = sortedCategories.slice(0, 3).map(([cat, amt]) =>
+        `• **${cat}**: $${amt.toLocaleString(undefined, { minimumFractionDigits: 2 })}`
+      ).join('\n');
+      return `📊 Your top spending category is **${topCategory[0]}** at **$${topCategory[1].toLocaleString(undefined, { minimumFractionDigits: 2 })}** (${((topCategory[1] / total) * 100).toFixed(1)}% of total).\n\nHere's your top 3:\n${breakdown}`;
+    }
+
+    // "How can I save money?"
+    if (q.includes('save money') || q.includes('saving tips') || q.includes('reduce spending') || q.includes('cut costs')) {
+      if (expenses.length === 0) return "Start by tracking your expenses here – that's the first step to saving! 💡";
+      let tips = "💰 Here are personalized saving tips based on your data:\n\n";
+
+      if (catTotals['Entertainment'] && catTotals['Entertainment'] / total > 0.1)
+        tips += "🎬 **Entertainment** makes up " + ((catTotals['Entertainment'] / total) * 100).toFixed(0) + "% of spending. Try free alternatives like movie nights at home.\n\n";
+      if (catTotals['Shopping'] && catTotals['Shopping'] / total > 0.1)
+        tips += "🛍️ **Shopping** is " + ((catTotals['Shopping'] / total) * 100).toFixed(0) + "% of your budget. Try a 24-hour wait rule before purchases.\n\n";
+      if ((catTotals['Food & Drink'] || catTotals['Food and Drink'])) {
+        const foodTotal = (catTotals['Food & Drink'] || 0) + (catTotals['Food and Drink'] || 0);
+        if (foodTotal / total > 0.15)
+          tips += "🍔 **Food & Drink** is " + ((foodTotal / total) * 100).toFixed(0) + "% of spending. Meal prepping could save you $" + (foodTotal * 0.3).toFixed(0) + "/month.\n\n";
+      }
+      tips += "📋 **General tip:** Follow the 50/30/20 rule – 50% needs, 30% wants, 20% savings.";
+      return tips;
+    }
+
+    // "What's my total spending?"
+    if (q.includes('total spending') || q.includes('total expenses') || q.includes('how much have i spent')) {
+      if (expenses.length === 0) return "No expenses recorded yet. Start adding them!";
+      return `💵 Your total spending is **$${total.toLocaleString(undefined, { minimumFractionDigits: 2 })}** across **${expenses.length}** transactions in **${Object.keys(catTotals).length}** categories.`;
+    }
+
+    // "Show my spending personality"
+    if (q.includes('personality') || q.includes('spending type') || q.includes('what kind of spender')) {
+      return `🎭 Based on your spending patterns, your personality tag is: **${personality}**!\n\nThis is calculated from the ratio of essential vs discretionary spending in your expense history.`;
+    }
+
+    // "Hello" / greeting
+    if (q.includes('hello') || q.includes('hi') || q.includes('hey')) {
+      return "Hey there! 👋 I'm ready to help you understand your finances better. Try asking me about your spending patterns!";
+    }
+
+    // "Thank you"
+    if (q.includes('thank')) {
+      return "You're welcome! 😊 Happy to help you stay on top of your finances!";
+    }
+
+    // Fallback
+    return `I can help with questions like:\n• "Where do I spend the most?"\n• "How can I save money?"\n• "What's my total spending?"\n• "Show my spending personality"\n\nTry one of those!`;
+  };
+
+  const formatMessage = (text) => {
+    // Simple markdown-like bold
+    return text.split('\n').map((line, i) => {
+      const parts = line.split(/(\*\*.*?\*\*)/g).map((part, j) => {
+        if (part.startsWith('**') && part.endsWith('**')) {
+          return <strong key={j}>{part.slice(2, -2)}</strong>;
+        }
+        return part;
+      });
+      return <React.Fragment key={i}>{parts}{i < text.split('\n').length - 1 && <br />}</React.Fragment>;
+    });
+  };
+
+  const handleSend = (text) => {
+    const msgText = text || input.trim();
+    if (!msgText) return;
+
+    setMessages(prev => [...prev, { type: 'user', text: msgText }]);
+    setInput('');
+    setIsTyping(true);
+
+    setTimeout(() => {
+      const response = generateResponse(msgText);
+      setMessages(prev => [...prev, { type: 'bot', text: response }]);
+      setIsTyping(false);
+    }, 800 + Math.random() * 600);
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter') handleSend();
+  };
+
+  return (
+    <>
+      <button className={`chatbot-fab ${isOpen ? 'open' : ''}`} onClick={() => setIsOpen(!isOpen)}>
+        {isOpen ? (
+          <svg viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12" stroke="white" strokeWidth="2" fill="none" strokeLinecap="round" /></svg>
+        ) : (
+          <svg viewBox="0 0 24 24"><path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z" /></svg>
+        )}
+      </button>
+
+      {isOpen && (
+        <div className="chat-window">
+          <div className="chat-header">
+            <div className="chat-header-avatar">🤖</div>
+            <div className="chat-header-info">
+              <h4>FinSight AI</h4>
+              <p>Your personal finance assistant</p>
+            </div>
+          </div>
+
+          <div className="chat-messages">
+            {messages.map((msg, i) => (
+              <div key={i} className={`chat-message ${msg.type}`}>
+                {msg.type === 'bot' ? formatMessage(msg.text) : msg.text}
+              </div>
+            ))}
+            {isTyping && (
+              <div className="chat-typing">
+                <span></span><span></span><span></span>
+              </div>
+            )}
+            <div ref={messagesEndRef} />
+          </div>
+
+          {messages.length <= 2 && (
+            <div className="chat-suggestions">
+              {suggestions.map((s, i) => (
+                <button key={i} className="chat-suggestion-btn" onClick={() => handleSend(s)}>
+                  {s}
+                </button>
+              ))}
+            </div>
+          )}
+
+          <div className="chat-input-area">
+            <input
+              className="chat-input"
+              type="text"
+              placeholder="Ask about your finances..."
+              value={input}
+              onChange={e => setInput(e.target.value)}
+              onKeyDown={handleKeyDown}
+            />
+            <button className="chat-send-btn" onClick={() => handleSend()}>
+              <svg viewBox="0 0 24 24"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" /></svg>
+            </button>
+          </div>
+        </div>
+      )}
+    </>
+  );
+};
+
+// ─── Dashboard ───
+const Dashboard = ({
+  expenses,
+  filteredExpenses,
   onAddExpense,
   categoryFilter,
   setCategoryFilter,
@@ -444,7 +753,6 @@ const Dashboard = ({
   const totalExpenses = expenses.reduce((sum, exp) => sum + exp.amount, 0);
   const currentBalance = initialBalance - totalExpenses;
 
-  // Placeholder trends
   const balanceTrend = "3.2%";
   const expenseTrend = expenses.length > 0 ? "8.4%" : "0.0%";
 
@@ -462,13 +770,15 @@ const Dashboard = ({
           <p className="subtitle">Track and manage your financial health</p>
         </div>
         <button className="btn-primary" onClick={onAddExpense}>
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <line x1="12" y1="5" x2="12" y2="19"></line>
             <line x1="5" y1="12" x2="19" y2="12"></line>
           </svg>
           Add Expense
         </button>
       </div>
+
+      <SpendingPersonalityTag expenses={expenses} />
 
       <div className="stats-grid">
         <StatCard
@@ -497,7 +807,7 @@ const Dashboard = ({
       <InsightsPanel expenses={expenses} />
 
       <div className="filter-section">
-        <FilterBar 
+        <FilterBar
           categoryFilter={categoryFilter}
           setCategoryFilter={setCategoryFilter}
           startDate={startDate}
@@ -515,8 +825,8 @@ const Dashboard = ({
         </div>
       )}
 
-      <TransactionList 
-        expenses={filteredExpenses} 
+      <TransactionList
+        expenses={filteredExpenses}
         hasFilters={hasFilters}
         onClearFilters={() => {
           setCategoryFilter('All');
@@ -528,11 +838,13 @@ const Dashboard = ({
   );
 };
 
+// ─── App ───
 function App() {
   const [expenses, setExpenses] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [theme, setTheme] = useState('dark');
 
   // Filters State
   const [categoryFilter, setCategoryFilter] = useState('All');
@@ -547,6 +859,14 @@ function App() {
       return matchesCategory && matchesStartDate && matchesEndDate;
     });
   }, [expenses, categoryFilter, startDate, endDate]);
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+  }, [theme]);
+
+  const toggleTheme = () => {
+    setTheme(prev => prev === 'dark' ? 'light' : 'dark');
+  };
 
   useEffect(() => {
     const fetchExpenses = async () => {
@@ -578,7 +898,7 @@ function App() {
       });
 
       if (!response.ok) throw new Error('Failed to save expense');
-      
+
       const savedExpense = await response.json();
       setExpenses(prev => [...prev, savedExpense]);
     } catch (err) {
@@ -591,14 +911,17 @@ function App() {
     <div className="app-container">
       <Sidebar onAddExpense={() => setIsModalOpen(true)} />
       <div className="main-wrapper">
-        <Navbar />
+        <Navbar theme={theme} onThemeToggle={toggleTheme} />
         {isLoading ? (
-          <div className="content" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}>
-            <div style={{ color: 'var(--text-secondary)' }}>Loading your financial data...</div>
+          <div className="content">
+            <div className="loading-container">
+              <div className="loading-spinner"></div>
+              <div className="loading-text">Loading your financial data...</div>
+            </div>
           </div>
         ) : error ? (
           <div className="content" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}>
-            <div style={{ color: 'var(--accent-error)', marginBottom: '1rem' }}>{error}</div>
+            <div style={{ color: 'var(--accent-error)', marginBottom: '1rem', fontSize: '16px' }}>{error}</div>
             <button className="btn-secondary" onClick={() => window.location.reload()}>Retry</button>
           </div>
         ) : (
@@ -620,6 +943,7 @@ function App() {
         onClose={() => setIsModalOpen(false)}
         onAdd={addExpense}
       />
+      <Chatbot expenses={expenses} />
     </div>
   )
 }
