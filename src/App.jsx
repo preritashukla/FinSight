@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react'
+import { Routes, Route, Navigate, useNavigate } from 'react-router-dom'
+import Login from './Login.jsx'
 import {
   PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip, Legend,
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, AreaChart, Area
@@ -54,7 +56,12 @@ const Sidebar = ({ onAddExpense }) => {
 };
 
 // ─── Navbar ───
-const Navbar = ({ theme, onThemeToggle }) => {
+const Navbar = ({ theme, onThemeToggle, userName, onLogout }) => {
+  // Derive initials for avatar
+  const initials = userName
+    ? userName.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2)
+    : '?';
+
   return (
     <nav className="navbar">
       <div className="navbar-left">
@@ -66,10 +73,18 @@ const Navbar = ({ theme, onThemeToggle }) => {
         <ThemeToggle theme={theme} onToggle={onThemeToggle} />
         <div className="user-profile">
           <span style={{ color: 'var(--text-secondary)', fontSize: '13px' }}>
-            Welcome, <strong style={{ color: 'var(--text-primary)' }}>Alex</strong>
+            Welcome, <strong style={{ color: 'var(--text-primary)' }}>{userName || 'Guest'}</strong>
           </span>
-          <div className="avatar"></div>
+          <div className="avatar" title={userName}>{initials}</div>
         </div>
+        <button className="logout-btn" onClick={onLogout} title="Logout">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4" />
+            <polyline points="16 17 21 12 16 7" />
+            <line x1="21" y1="12" x2="9" y2="12" />
+          </svg>
+          Logout
+        </button>
       </div>
     </nav>
   );
@@ -838,8 +853,17 @@ const Dashboard = ({
   );
 };
 
-// ─── App ───
-function App() {
+// ─── Dashboard Page (authenticated route wrapper) ───
+function DashboardPage() {
+  const navigate = useNavigate();
+
+  // Read user from localStorage
+  const storedUser = localStorage.getItem('user');
+  const user = storedUser ? JSON.parse(storedUser) : null;
+
+  // Redirect to login if not authenticated
+  if (!user) return <Navigate to="/login" replace />;
+
   const [expenses, setExpenses] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -864,9 +888,7 @@ function App() {
     document.documentElement.setAttribute('data-theme', theme);
   }, [theme]);
 
-  const toggleTheme = () => {
-    setTheme(prev => prev === 'dark' ? 'light' : 'dark');
-  };
+  const toggleTheme = () => setTheme(prev => prev === 'dark' ? 'light' : 'dark');
 
   useEffect(() => {
     const fetchExpenses = async () => {
@@ -883,7 +905,6 @@ function App() {
         setIsLoading(false);
       }
     };
-
     fetchExpenses();
   }, []);
 
@@ -891,14 +912,10 @@ function App() {
     try {
       const response = await fetch('/api/expenses', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newExpense),
       });
-
       if (!response.ok) throw new Error('Failed to save expense');
-
       const savedExpense = await response.json();
       setExpenses(prev => [...prev, savedExpense]);
     } catch (err) {
@@ -907,11 +924,21 @@ function App() {
     }
   };
 
+  const handleLogout = () => {
+    localStorage.removeItem('user');
+    navigate('/login', { replace: true });
+  };
+
   return (
     <div className="app-container">
       <Sidebar onAddExpense={() => setIsModalOpen(true)} />
       <div className="main-wrapper">
-        <Navbar theme={theme} onThemeToggle={toggleTheme} />
+        <Navbar
+          theme={theme}
+          onThemeToggle={toggleTheme}
+          userName={user.name}
+          onLogout={handleLogout}
+        />
         {isLoading ? (
           <div className="content">
             <div className="loading-container">
@@ -945,7 +972,19 @@ function App() {
       />
       <Chatbot expenses={expenses} />
     </div>
-  )
+  );
+}
+
+// ─── App – routing shell ───
+function App() {
+  return (
+    <Routes>
+      <Route path="/login" element={<Login />} />
+      <Route path="/dashboard" element={<DashboardPage />} />
+      {/* Default: redirect root to /dashboard (DashboardPage itself redirects to /login if not authed) */}
+      <Route path="*" element={<Navigate to="/dashboard" replace />} />
+    </Routes>
+  );
 }
 
 export default App
