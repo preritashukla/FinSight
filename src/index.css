@@ -1484,3 +1484,185 @@ h1 {
 @media (max-width: 480px) {
   .login-card { padding: 36px 24px; }
 }
+
+/* ─── Health + Recs Grid ─── */
+.health-recs-grid {
+  display: grid;
+  grid-template-columns: 1fr 1.6fr;
+  gap: 24px;
+  margin-bottom: 32px;
+  animation: pageSlideIn 0.6s ease-out 0.3s backwards;
+}
+
+@media (max-width: 900px) {
+  .health-recs-grid { grid-template-columns: 1fr; }
+}
+
+/* ─── Financial Health Score Card ─── */
+.health-score-card {
+  background: var(--bg-secondary);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--border-radius);
+  padding: 24px;
+  transition: var(--transition);
+}
+
+.health-score-card:hover {
+  border-color: rgba(129, 140, 248, 0.2);
+  box-shadow: var(--glow);
+  transform: translateY(-2px);
+}
+
+.health-score-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.health-score-header h3 {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.health-grade {
+  font-size: 28px;
+  font-weight: 900;
+  letter-spacing: -1px;
+  line-height: 1;
+}
+
+.health-score-body {
+  display: flex;
+  gap: 20px;
+  align-items: center;
+}
+
+.health-ring-wrap {
+  flex-shrink: 0;
+  width: 110px;
+  height: 110px;
+}
+
+.health-ring {
+  width: 100%;
+  height: 100%;
+}
+
+.health-breakdown {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.health-bar-item {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.health-bar-label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.health-bar-bg {
+  height: 6px;
+  background: var(--bg-tertiary);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.health-bar-fill {
+  height: 100%;
+  border-radius: 10px;
+  transition: width 1s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.health-tip {
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-style: italic;
+  margin-top: 4px;
+}
+
+/* ─── Smart Recommendations Panel ─── */
+.recommendations-panel {
+  background: var(--bg-secondary);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--border-radius);
+  padding: 24px;
+  transition: var(--transition);
+}
+
+.recommendations-panel:hover {
+  border-color: rgba(129, 140, 248, 0.15);
+}
+
+.recommendations-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.recommendation-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  background: var(--bg-tertiary);
+  border-radius: var(--border-radius-sm);
+  padding: 14px 16px;
+  transition: var(--transition);
+  /* borderLeft set via inline style per priority */
+}
+
+.recommendation-item:hover {
+  transform: translateX(4px);
+  background: var(--bg-solid-tertiary);
+}
+
+.rec-icon {
+  font-size: 22px;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.rec-content {
+  flex: 1;
+}
+
+.rec-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.rec-badge {
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: white;
+  padding: 2px 7px;
+  border-radius: 20px;
+  opacity: 0.9;
+}
+
+.rec-desc {
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}

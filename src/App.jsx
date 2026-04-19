@@ -362,73 +362,271 @@ const FilterBar = React.memo(({ categoryFilter, setCategoryFilter, startDate, se
 });
 FilterBar.displayName = 'FilterBar';
 
-// ─── Insights Panel ───
+// ─── Intelligence Engine (pure functions) ───
+const getCategoryTotals = (expenses) =>
+  expenses.reduce((acc, ex) => {
+    acc[ex.category] = (acc[ex.category] || 0) + ex.amount;
+    return acc;
+  }, {});
+
+const getMonthExpenses = (expenses, monthOffset = 0) => {
+  const now = new Date();
+  const target = new Date(now.getFullYear(), now.getMonth() - monthOffset, 1);
+  return expenses.filter(ex => {
+    const d = new Date(ex.date);
+    return d.getMonth() === target.getMonth() && d.getFullYear() === target.getFullYear();
+  });
+};
+
+const getTrendLabel = (percent, diff) => {
+  if (diff === 0) return 'No change from last month';
+  const direction = diff > 0 ? 'increased' : 'decreased';
+  const magnitude = Math.abs(percent);
+  let feel;
+  if (magnitude < 5) feel = 'slightly';
+  else if (magnitude < 15) feel = 'noticeably';
+  else if (magnitude < 30) feel = 'significantly';
+  else feel = 'sharply';
+  return `Spending ${direction} ${feel} (${Math.abs(percent).toFixed(1)}%)`;
+};
+
+const getFinancialHealthScore = (expenses, initialBalance = 24562) => {
+  if (expenses.length === 0) return { score: 72, grade: 'B', label: 'Good Start', color: '#34d399', breakdown: { savings: 20, distribution: 52 } };
+  const total = expenses.reduce((s, e) => s + e.amount, 0);
+  const catTotals = getCategoryTotals(expenses);
+
+  // Savings Ratio Score (0-40 pts): higher savings = higher score
+  const remaining = initialBalance - total;
+  const savingsRatio = remaining / initialBalance;
+  const savingsScore = Math.max(0, Math.min(40, Math.round(savingsRatio * 50)));
+
+  // Spending Distribution Score (0-60 pts): penalise category over-concentration
+  const sortedEntries = Object.values(catTotals).sort((a, b) => b - a);
+  const top1Share = total > 0 ? sortedEntries[0] / total : 0;
+  const essentials = ['Housing', 'Utilities', 'Transport'];
+  const essentialSpend = essentials.reduce((s, c) => s + (catTotals[c] || 0), 0);
+  const essentialRatio = total > 0 ? essentialSpend / total : 0;
+
+  // Penalise if single category > 60% OR if food > 40%
+  const food = (catTotals['Food & Drink'] || 0) + (catTotals['Food and Drink'] || 0);
+  const foodRatio = total > 0 ? food / total : 0;
+  let distScore = 60;
+  if (top1Share > 0.7) distScore -= 20;
+  else if (top1Share > 0.55) distScore -= 10;
+  if (foodRatio > 0.4) distScore -= 15;
+  else if (foodRatio > 0.25) distScore -= 7;
+  if (essentialRatio > 0.85) distScore -= 10;
+  distScore = Math.max(0, distScore);
+
+  const score = Math.min(100, savingsScore + distScore);
+  let grade, label, color;
+  if (score >= 85) { grade = 'A'; label = 'Excellent'; color = '#34d399'; }
+  else if (score >= 70) { grade = 'B'; label = 'Good'; color = '#818cf8'; }
+  else if (score >= 55) { grade = 'C'; label = 'Fair'; color = '#fbbf24'; }
+  else if (score >= 40) { grade = 'D'; label = 'Needs Work'; color = '#fb923c'; }
+  else { grade = 'F'; label = 'At Risk'; color = '#fb7185'; }
+
+  return { score, grade, label, color, breakdown: { savings: savingsScore, distribution: distScore } };
+};
+
+const getSmartRecommendations = (expenses, initialBalance = 24562) => {
+  if (expenses.length === 0) return [{
+    icon: '💡', title: 'Start Tracking', desc: 'Add your first expense to unlock personalized recommendations.', priority: 'low'
+  }];
+
+  const total = expenses.reduce((s, e) => s + e.amount, 0);
+  const catTotals = getCategoryTotals(expenses);
+  const recs = [];
+
+  const food = (catTotals['Food & Drink'] || 0) + (catTotals['Food and Drink'] || 0);
+  if (total > 0 && food / total > 0.4)
+    recs.push({ icon: '🍔', title: 'High Food Spending', desc: `Food & Drink is ${((food/total)*100).toFixed(0)}% of your budget. Try meal prepping — it can save ₹${Math.round(food * 0.3).toLocaleString()}/month.`, priority: 'high' });
+  else if (total > 0 && food / total > 0.25)
+    recs.push({ icon: '🍱', title: 'Moderate Food Costs', desc: `Food is ${((food/total)*100).toFixed(0)}% of spend. Cooking at home 2 more days a week could free up meaningful savings.`, priority: 'medium' });
+
+  const entertainment = catTotals['Entertainment'] || 0;
+  const shopping = catTotals['Shopping'] || 0;
+  if (total > 0 && (entertainment + shopping) / total > 0.35)
+    recs.push({ icon: '🛍️', title: 'Discretionary Spending High', desc: `Entertainment + Shopping = ${(((entertainment+shopping)/total)*100).toFixed(0)}% of budget. Apply the 24-hour rule before non-essential purchases.`, priority: 'high' });
+
+  const remaining = initialBalance - total;
+  const savingsRatio = remaining / initialBalance;
+  if (savingsRatio < 0.1)
+    recs.push({ icon: '🚨', title: 'Low Savings Alert', desc: `Only ${(savingsRatio*100).toFixed(1)}% of income remains. Consider the 50/30/20 rule: 50% needs, 30% wants, 20% savings.`, priority: 'high' });
+  else if (savingsRatio < 0.2)
+    recs.push({ icon: '💰', title: 'Build Your Safety Net', desc: `You're saving ${(savingsRatio*100).toFixed(1)}%. Aim for at least 20% — even small increases compound over time.`, priority: 'medium' });
+
+  const transport = catTotals['Transport'] || 0;
+  if (total > 0 && transport / total > 0.2)
+    recs.push({ icon: '🚗', title: 'Transport Costs Elevated', desc: `Transport is ${((transport/total)*100).toFixed(0)}% of spending. Carpooling or public transit could reduce this.`, priority: 'medium' });
+
+  if (recs.length === 0)
+    recs.push({ icon: '🎉', title: 'Great job!', desc: 'Your spending looks well-balanced. Keep it up and consider growing your investment portfolio.', priority: 'low' });
+
+  return recs.sort((a, b) => { const p = {high:0,medium:1,low:2}; return p[a.priority] - p[b.priority]; });
+};
+
+// ─── Insights Panel (Enhanced) ───
 const InsightsPanel = React.memo(({ expenses }) => {
   const insights = useMemo(() => {
     if (expenses.length === 0) return null;
 
-    const catTotals = expenses.reduce((acc, ex) => {
-      acc[ex.category] = (acc[ex.category] || 0) + ex.amount;
-      return acc;
-    }, {});
-
+    const catTotals = getCategoryTotals(expenses);
     if (Object.keys(catTotals).length === 0) return null;
 
-    const highest = Object.entries(catTotals).reduce((a, b) => a[1] > b[1] ? a : b);
+    // Top 2 categories
+    const sorted = Object.entries(catTotals).sort((a, b) => b[1] - a[1]);
+    const top2 = sorted.slice(0, 2);
+    const total = expenses.reduce((s, e) => s + e.amount, 0);
 
-    const now = new Date();
-    const currentMonth = now.getMonth();
-    const currentYear = now.getFullYear();
+    // Monthly comparison
+    const currMonthExp = getMonthExpenses(expenses, 0);
+    const prevMonthExp = getMonthExpenses(expenses, 1);
+    const currTotal = currMonthExp.reduce((s, e) => s + e.amount, 0);
+    const prevTotal = prevMonthExp.reduce((s, e) => s + e.amount, 0);
+    const diff = currTotal - prevTotal;
+    const percentChange = prevTotal !== 0 ? (diff / prevTotal) * 100 : (currTotal > 0 ? 100 : 0);
+    const trendLabel = getTrendLabel(percentChange, diff);
 
-    const currMonthTotal = expenses
-      .filter(ex => {
-        const d = new Date(ex.date);
-        return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
-      })
-      .reduce((sum, ex) => sum + ex.amount, 0);
+    // Spending trend direction
+    const trendDir = diff > 0 ? 'up' : diff < 0 ? 'down' : 'flat';
 
-    const prevMonthTotal = expenses
-      .filter(ex => {
-        const d = new Date(ex.date);
-        const prevMonth = currentMonth === 0 ? 11 : currentMonth - 1;
-        const prevYear = currentMonth === 0 ? currentYear - 1 : currentYear;
-        return d.getMonth() === prevMonth && d.getFullYear() === prevYear;
-      })
-      .reduce((sum, ex) => sum + ex.amount, 0);
-
-    const diff = currMonthTotal - prevMonthTotal;
-    const percentChange = prevMonthTotal !== 0 ? (diff / prevMonthTotal) * 100 : 0;
-
-    return {
-      highest: { name: highest[0], amount: highest[1] },
-      trend: { percent: Math.abs(percentChange).toFixed(1), isUp: diff > 0, diff: Math.abs(diff) }
-    };
+    return { top2, total, trendLabel, trendDir, currTotal, prevTotal, diff: Math.abs(diff), percentChange };
   }, [expenses]);
 
-  if (!insights) return null;
+  if (!insights) return (
+    <div className="insights-container">
+      <div className="insight-card highlight">
+        <div className="insight-icon">📊</div>
+        <div className="insight-details">
+          <span className="insight-label">No Data Yet</span>
+          <span className="insight-value">—</span>
+          <span className="insight-subtext">Add expenses to see insights</span>
+        </div>
+      </div>
+    </div>
+  );
+
+  const trendIcon = insights.trendDir === 'up' ? '📈' : insights.trendDir === 'down' ? '📉' : '➡️';
 
   return (
     <div className="insights-container">
       <div className="insight-card highlight">
-        <div className="insight-icon">🔥</div>
+        <div className="insight-icon">🥇</div>
         <div className="insight-details">
-          <span className="insight-label">Top Spending</span>
-          <span className="insight-value">{insights.highest.name}</span>
-          <span className="insight-subtext">₹{insights.highest.amount.toLocaleString()} total</span>
+          <span className="insight-label">Top Category</span>
+          <span className="insight-value">{insights.top2[0][0]}</span>
+          <span className="insight-subtext">₹{insights.top2[0][1].toLocaleString()} · {((insights.top2[0][1]/insights.total)*100).toFixed(1)}% of spend</span>
         </div>
       </div>
+      {insights.top2[1] && (
+        <div className="insight-card">
+          <div className="insight-icon">🥈</div>
+          <div className="insight-details">
+            <span className="insight-label">#2 Category</span>
+            <span className="insight-value">{insights.top2[1][0]}</span>
+            <span className="insight-subtext">₹{insights.top2[1][1].toLocaleString()} · {((insights.top2[1][1]/insights.total)*100).toFixed(1)}% of spend</span>
+          </div>
+        </div>
+      )}
       <div className="insight-card">
-        <div className="insight-icon">{insights.trend.isUp ? '📈' : '📉'}</div>
+        <div className="insight-icon">{trendIcon}</div>
         <div className="insight-details">
           <span className="insight-label">Monthly Trend</span>
-          <span className="insight-value">{insights.trend.isUp ? '+' : '-'}{insights.trend.percent}%</span>
-          <span className="insight-subtext">₹{insights.trend.diff.toLocaleString()} vs last month</span>
+          <span className="insight-value" style={{ color: insights.trendDir === 'up' ? 'var(--accent-error)' : insights.trendDir === 'down' ? 'var(--accent-secondary)' : 'var(--text-primary)' }}>
+            {insights.trendDir === 'flat' ? 'Stable' : (insights.trendDir === 'up' ? '+' : '-') + Math.abs(insights.percentChange).toFixed(1) + '%'}
+          </span>
+          <span className="insight-subtext">{insights.trendLabel}</span>
         </div>
       </div>
     </div>
   );
 });
 InsightsPanel.displayName = 'InsightsPanel';
+
+// ─── Financial Health Score ───
+const FinancialHealthScore = React.memo(({ expenses }) => {
+  const health = useMemo(() => getFinancialHealthScore(expenses), [expenses]);
+  const circumference = 2 * Math.PI * 40;
+  const strokeDash = circumference - (health.score / 100) * circumference;
+
+  return (
+    <div className="health-score-card">
+      <div className="health-score-header">
+        <h3>💳 Financial Health Score</h3>
+        <span className="health-grade" style={{ color: health.color }}>{health.grade}</span>
+      </div>
+      <div className="health-score-body">
+        <div className="health-ring-wrap">
+          <svg viewBox="0 0 100 100" className="health-ring">
+            <circle cx="50" cy="50" r="40" fill="none" stroke="var(--glass-border)" strokeWidth="8" />
+            <circle
+              cx="50" cy="50" r="40" fill="none"
+              stroke={health.color} strokeWidth="8"
+              strokeDasharray={circumference}
+              strokeDashoffset={strokeDash}
+              strokeLinecap="round"
+              style={{ transform: 'rotate(-90deg)', transformOrigin: '50% 50%', transition: 'stroke-dashoffset 1s ease' }}
+            />
+            <text x="50" y="47" textAnchor="middle" fill="var(--text-primary)" fontSize="18" fontWeight="700">{health.score}</text>
+            <text x="50" y="61" textAnchor="middle" fill="var(--text-secondary)" fontSize="9">{health.label}</text>
+          </svg>
+        </div>
+        <div className="health-breakdown">
+          <div className="health-bar-item">
+            <div className="health-bar-label">
+              <span>Savings Ratio</span>
+              <span style={{ color: health.color }}>{health.breakdown.savings}/40</span>
+            </div>
+            <div className="health-bar-bg">
+              <div className="health-bar-fill" style={{ width: `${(health.breakdown.savings/40)*100}%`, background: health.color }} />
+            </div>
+          </div>
+          <div className="health-bar-item">
+            <div className="health-bar-label">
+              <span>Spending Balance</span>
+              <span style={{ color: health.color }}>{health.breakdown.distribution}/60</span>
+            </div>
+            <div className="health-bar-bg">
+              <div className="health-bar-fill" style={{ width: `${(health.breakdown.distribution/60)*100}%`, background: health.color }} />
+            </div>
+          </div>
+          <p className="health-tip">Score improves with balanced spending and higher savings.</p>
+        </div>
+      </div>
+    </div>
+  );
+});
+FinancialHealthScore.displayName = 'FinancialHealthScore';
+
+// ─── Smart Recommendations ───
+const SmartRecommendations = React.memo(({ expenses }) => {
+  const recs = useMemo(() => getSmartRecommendations(expenses), [expenses]);
+  const priorityStyle = { high: 'var(--accent-error)', medium: '#fbbf24', low: 'var(--accent-secondary)' };
+
+  return (
+    <div className="recommendations-panel">
+      <div className="section-header" style={{ marginBottom: '1rem' }}>
+        <h3>🎯 Smart Recommendations</h3>
+        <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Based on your data</span>
+      </div>
+      <div className="recommendations-list">
+        {recs.map((rec, i) => (
+          <div key={i} className="recommendation-item" style={{ borderLeft: `3px solid ${priorityStyle[rec.priority]}` }}>
+            <div className="rec-icon">{rec.icon}</div>
+            <div className="rec-content">
+              <div className="rec-title">{rec.title}
+                <span className="rec-badge" style={{ background: priorityStyle[rec.priority] }}>{rec.priority}</span>
+              </div>
+              <div className="rec-desc">{rec.desc}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+});
+SmartRecommendations.displayName = 'SmartRecommendations';
 
 // ─── Chart Colors ───
 const CHART_COLORS = ['#818cf8', '#34d399', '#fbbf24', '#fb7185', '#c084fc', '#f472b6', '#22d3ee'];
@@ -585,35 +783,39 @@ const Chatbot = React.memo(({ expenses }) => {
 
   const suggestions = useMemo(() => [
     "Where do I spend the most?",
+    "What's my health score?",
     "How can I save money?",
-    "What's my total spending?",
-    "Show my spending personality"
+    "Compare this month vs last"
   ], []);
 
   const generateResponse = useCallback((question) => {
     const q = question.toLowerCase();
     const total = expenses.reduce((s, e) => s + e.amount, 0);
-
-    // Category breakdown
-    const catTotals = expenses.reduce((acc, e) => {
-      acc[e.category] = (acc[e.category] || 0) + e.amount;
-      return acc;
-    }, {});
+    const catTotals = getCategoryTotals(expenses);
     const sortedCategories = Object.entries(catTotals).sort((a, b) => b[1] - a[1]);
     const topCategory = sortedCategories.length > 0 ? sortedCategories[0] : null;
+    const health = getFinancialHealthScore(expenses);
+    const recs = getSmartRecommendations(expenses);
 
-    // Spending Personality
+    // Monthly comparison
+    const currMonthExp = getMonthExpenses(expenses, 0);
+    const prevMonthExp = getMonthExpenses(expenses, 1);
+    const currMonthTotal = currMonthExp.reduce((s, e) => s + e.amount, 0);
+    const prevMonthTotal = prevMonthExp.reduce((s, e) => s + e.amount, 0);
+    const monthDiff = currMonthTotal - prevMonthTotal;
+    const monthPercent = prevMonthTotal !== 0 ? (monthDiff / prevMonthTotal) * 100 : 0;
+
+    // Personality
     let personality = 'Smart Planner';
-    if (expenses.length < 5) {
-      personality = 'Budget Rookie';
-    } else {
-      const discretionary = expenses.filter(e => ['Entertainment', 'Shopping'].includes(e.category));
-      const discretionaryRatio = discretionary.reduce((s, e) => s + e.amount, 0) / (total || 1);
-      if (discretionaryRatio > 0.35) personality = 'Impulsive Spender';
+    if (expenses.length < 5) personality = 'Budget Rookie';
+    else {
+      const disc = expenses.filter(e => ['Entertainment', 'Shopping'].includes(e.category));
+      const discRatio = disc.reduce((s, e) => s + e.amount, 0) / (total || 1);
+      if (discRatio > 0.35) personality = 'Impulsive Spender';
       else {
-        const essentials = expenses.filter(e => ['Housing', 'Utilities', 'Transport'].includes(e.category));
-        const essentialRatio = essentials.reduce((s, e) => s + e.amount, 0) / (total || 1);
-        if (essentialRatio > 0.5 && essentialRatio <= 0.8) personality = 'Balanced Saver';
+        const ess = expenses.filter(e => ['Housing', 'Utilities', 'Transport'].includes(e.category));
+        const essRatio = ess.reduce((s, e) => s + e.amount, 0) / (total || 1);
+        if (essRatio > 0.5 && essRatio <= 0.8) personality = 'Balanced Saver';
         else {
           const food = expenses.filter(e => e.category === 'Food & Drink' || e.category === 'Food and Drink');
           if (food.reduce((s, e) => s + e.amount, 0) / (total || 1) > 0.25) personality = 'Foodie Enthusiast';
@@ -621,56 +823,90 @@ const Chatbot = React.memo(({ expenses }) => {
       }
     }
 
-    // "Where do I spend the most?"
-    if (q.includes('spend the most') || q.includes('biggest expense') || q.includes('top spending') || q.includes('highest spending')) {
-      if (expenses.length === 0) return "You haven't added any expenses yet! Start tracking to get insights.";
-      const breakdown = sortedCategories.slice(0, 3).map(([cat, amt]) =>
-        `• **${cat}**: ₹${amt.toLocaleString(undefined, { minimumFractionDigits: 2 })}`
+    const greetings = [
+      "Hey there! 👋 I'm ready to help you understand your finances better. Try asking about your spending!",
+      "Hello! 😊 Your personal finance assistant is here. What would you like to know?",
+      "Hi! 💬 Ask me about your spending, savings, or health score — I'm all ears!"
+    ];
+    const thanks = [
+      "You're welcome! 😊 Happy to help you stay on top of your finances!",
+      "Anytime! 🙌 Smart tracking leads to smarter saving.",
+      "Glad I could help! 💡 Keep logging those expenses for better insights."
+    ];
+    const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
+
+    // Greeting
+    if (q.match(/^(hi|hey|hello|howdy|sup|yo)\b/))
+      return pick(greetings);
+
+    // Thank you
+    if (q.includes('thank'))
+      return pick(thanks);
+
+    // "Where do I spend the most?" / "top categories"
+    if (q.includes('spend the most') || q.includes('biggest expense') || q.includes('top spending') || q.includes('top categor') || q.includes('highest spending')) {
+      if (expenses.length === 0) return "📭 You haven't added any expenses yet! Start tracking to get insights.";
+      const breakdown = sortedCategories.slice(0, 3).map(([cat, amt], i) =>
+        `${['🥇','🥈','🥉'][i]} **${cat}**: ₹${amt.toLocaleString(undefined, { minimumFractionDigits: 2 })} (${((amt/total)*100).toFixed(1)}%)`
       ).join('\n');
-      return `📊 Your top spending category is **${topCategory[0]}** at **₹${topCategory[1].toLocaleString(undefined, { minimumFractionDigits: 2 })}** (${((topCategory[1] / total) * 100).toFixed(1)}% of total).\n\nHere's your top 3:\n${breakdown}`;
+      return `📊 Your top spending category is **${topCategory[0]}** at **₹${topCategory[1].toLocaleString()}**\n\nFull breakdown:\n${breakdown}`;
     }
 
     // "How can I save money?"
-    if (q.includes('save money') || q.includes('saving tips') || q.includes('reduce spending') || q.includes('cut costs')) {
-      if (expenses.length === 0) return "Start by tracking your expenses here – that's the first step to saving! 💡";
-      let tips = "💰 Here are personalized saving tips based on your data:\n\n";
-
-      if (catTotals['Entertainment'] && catTotals['Entertainment'] / total > 0.1)
-        tips += "🎬 **Entertainment** makes up " + ((catTotals['Entertainment'] / total) * 100).toFixed(0) + "% of spending. Try free alternatives like movie nights at home.\n\n";
-      if (catTotals['Shopping'] && catTotals['Shopping'] / total > 0.1)
-        tips += "🛍️ **Shopping** is " + ((catTotals['Shopping'] / total) * 100).toFixed(0) + "% of your budget. Try a 24-hour wait rule before purchases.\n\n";
-      if ((catTotals['Food & Drink'] || catTotals['Food and Drink'])) {
-        const foodTotal = (catTotals['Food & Drink'] || 0) + (catTotals['Food and Drink'] || 0);
-        if (foodTotal / total > 0.15)
-          tips += "🍔 **Food & Drink** is " + ((foodTotal / total) * 100).toFixed(0) + "% of spending. Meal prepping could save you ₹" + (foodTotal * 0.3).toFixed(0) + "/month.\n\n";
-      }
-      tips += "📋 **General tip:** Follow the 50/30/20 rule – 50% needs, 30% wants, 20% savings.";
+    if (q.includes('save money') || q.includes('saving tips') || q.includes('reduce spending') || q.includes('cut costs') || q.includes('budget tip')) {
+      if (expenses.length === 0) return "💡 Start by tracking your expenses here – that's step one to saving!";
+      let tips = "💰 Personalised saving tips based on your data:\n\n";
+      const food = (catTotals['Food & Drink'] || 0) + (catTotals['Food and Drink'] || 0);
+      if (food / total > 0.25) tips += `🍔 **Food & Drink** is ${((food/total)*100).toFixed(0)}% of spending. Meal prepping could save ₹${Math.round(food*0.3).toLocaleString()}/month.\n\n`;
+      if (catTotals['Entertainment'] && catTotals['Entertainment'] / total > 0.1) tips += `🎬 **Entertainment** is ${((catTotals['Entertainment']/total)*100).toFixed(0)}% — swap one outing/week for a free activity.\n\n`;
+      if (catTotals['Shopping'] && catTotals['Shopping'] / total > 0.1) tips += `🛍️ **Shopping** is ${((catTotals['Shopping']/total)*100).toFixed(0)}% — use the 24-hour wait rule before purchases.\n\n`;
+      tips += "📋 **Rule of thumb:** 50% needs • 30% wants • 20% savings.";
       return tips;
     }
 
     // "What's my total spending?"
-    if (q.includes('total spending') || q.includes('total expenses') || q.includes('how much have i spent')) {
-      if (expenses.length === 0) return "No expenses recorded yet. Start adding them!";
-      return `💵 Your total spending is **₹${total.toLocaleString(undefined, { minimumFractionDigits: 2 })}** across **${expenses.length}** transactions in **${Object.keys(catTotals).length}** categories.`;
+    if (q.includes('total spending') || q.includes('total expenses') || q.includes('how much have i spent') || q.includes('how much did i spend')) {
+      if (expenses.length === 0) return "📭 No expenses recorded yet. Start adding them!";
+      const variations = [
+        `💵 You've spent **₹${total.toLocaleString(undefined, { minimumFractionDigits: 2 })}** across **${expenses.length}** transactions in **${sortedCategories.length}** categories.`,
+        `📋 Total outflow: **₹${total.toLocaleString()}** from **${expenses.length}** recorded expenses across **${sortedCategories.length}** categories.`,
+        `🧾 Your spending totals **₹${total.toLocaleString()}** — spread over **${expenses.length}** transactions.`
+      ];
+      return pick(variations);
     }
 
-    // "Show my spending personality"
-    if (q.includes('personality') || q.includes('spending type') || q.includes('what kind of spender')) {
-      return `🎭 Based on your spending patterns, your personality tag is: **${personality}**!\n\nThis is calculated from the ratio of essential vs discretionary spending in your expense history.`;
+    // "My financial health score" / "health score"
+    if (q.includes('health score') || q.includes('financial health') || q.includes('how healthy') || q.includes('my score')) {
+      if (expenses.length === 0) return "📊 Add some expenses first so I can calculate your financial health score!";
+      return `💳 Your **Financial Health Score** is **${health.score}/100** — Grade **${health.grade}** (${health.label}).\n\n• Savings score: ${health.breakdown.savings}/40\n• Distribution score: ${health.breakdown.distribution}/60\n\n${health.score >= 70 ? '✅ You\'re doing great!' : '⚠️ Check the Smart Recommendations panel for improvement tips.'}`;
     }
 
-    // "Hello" / greeting
-    if (q.includes('hello') || q.includes('hi') || q.includes('hey')) {
-      return "Hey there! 👋 I'm ready to help you understand your finances better. Try asking me about your spending patterns!";
+    // "What should I do?" / "recommendations"
+    if (q.includes('recommend') || q.includes('what should') || q.includes('advice') || q.includes('suggest') || q.includes('tips')) {
+      if (expenses.length === 0) return "💡 Start tracking expenses and I'll give you data-driven recommendations!";
+      const topRec = recs[0];
+      const others = recs.slice(1, 3).map(r => `• ${r.icon} **${r.title}**: ${r.desc}`).join('\n');
+      return `🎯 Top recommendation for you:\n\n${topRec.icon} **${topRec.title}**: ${topRec.desc}\n\n${others.length > 0 ? 'Other tips:\n' + others : ''}`;
     }
 
-    // "Thank you"
-    if (q.includes('thank')) {
-      return "You're welcome! 😊 Happy to help you stay on top of your finances!";
+    // "How was last month?" / "monthly comparison"
+    if (q.includes('last month') || q.includes('this month') || q.includes('monthly') || q.includes('compare month')) {
+      if (expenses.length === 0) return "📭 No expense data yet to compare months.";
+      const arrow = monthDiff > 0 ? '📈 +' : monthDiff < 0 ? '📉 -' : '➡️ ';
+      const changeText = monthDiff === 0 ? 'No change' : `${arrow}${Math.abs(monthPercent).toFixed(1)}% (₹${Math.abs(monthDiff).toLocaleString()})` ;
+      return `📅 **This month**: ₹${currMonthTotal.toLocaleString()} across ${currMonthExp.length} transactions\n**Last month**: ₹${prevMonthTotal.toLocaleString()} across ${prevMonthExp.length} transactions\n\n${getTrendLabel(monthPercent, monthDiff)}. Change: ${changeText}`;
     }
+
+    // Spending personality
+    if (q.includes('personality') || q.includes('spending type') || q.includes('what kind of spender') || q.includes('spender am i'))
+      return `🎭 Based on your patterns, you're a **${personality}**!\n\nThis is derived from the ratio of essential vs discretionary spending across all your recorded transactions.`;
 
     // Fallback
-    return `I can help with questions like:\n• "Where do I spend the most?"\n• "How can I save money?"\n• "What's my total spending?"\n• "Show my spending personality"\n\nTry one of those!`;
+    const fallbacks = [
+      `I can help with questions like:\n• "Where do I spend the most?"\n• "How can I save money?"\n• "What's my health score?"\n• "Compare this month vs last"\n• "Show my spending personality"`,
+      `Ask me something like:\n• "What are my top categories?"\n• "Any savings tips?"\n• "What's my financial health?"\n• "How did last month compare?"`,
+    ];
+    return pick(fallbacks);
   }, [expenses]);
 
   const handleSend = useCallback((text) => {
@@ -839,6 +1075,11 @@ const Dashboard = React.memo(({
       </div>
 
       <InsightsPanel expenses={expenses} />
+
+      <div className="health-recs-grid">
+        <FinancialHealthScore expenses={expenses} />
+        <SmartRecommendations expenses={expenses} />
+      </div>
 
       <div className="filter-section">
         <FilterBar
