@@ -213,7 +213,7 @@ const ExpenseModal = ({ isOpen, onClose, onAdd }) => {
         </div>
         <form onSubmit={handleSubmit}>
           <div className="form-group">
-            <label>Amount ($)</label>
+            <label>Amount (₹)</label>
             <input
               type="number"
               placeholder="0.00"
@@ -294,7 +294,7 @@ const TransactionList = ({ expenses, onClearFilters, hasFilters }) => {
                 <div className="transaction-date">{exp.date} • {exp.category}</div>
               </div>
               <div className="transaction-amount">
-                -${exp.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                -₹{exp.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
               </div>
             </div>
           ))
@@ -386,7 +386,7 @@ const InsightsPanel = ({ expenses }) => {
         <div className="insight-details">
           <span className="insight-label">Top Spending</span>
           <span className="insight-value">{insights.highest.name}</span>
-          <span className="insight-subtext">${insights.highest.amount.toLocaleString()} total</span>
+          <span className="insight-subtext">₹{insights.highest.amount.toLocaleString()} total</span>
         </div>
       </div>
       <div className="insight-card">
@@ -394,7 +394,7 @@ const InsightsPanel = ({ expenses }) => {
         <div className="insight-details">
           <span className="insight-label">Monthly Trend</span>
           <span className="insight-value">{insights.trend.isUp ? '+' : '-'}{insights.trend.percent}%</span>
-          <span className="insight-subtext">${insights.trend.diff.toLocaleString()} vs last month</span>
+          <span className="insight-subtext">₹{insights.trend.diff.toLocaleString()} vs last month</span>
         </div>
       </div>
     </div>
@@ -511,13 +511,13 @@ const MonthlyExpensesChart = ({ expenses }) => {
               axisLine={false}
               tickLine={false}
               tick={{ fill: 'var(--text-secondary)', fontSize: 12 }}
-              tickFormatter={(value) => `$${value}`}
+              tickFormatter={(value) => `₹${value}`}
             />
             <Tooltip
               cursor={{ fill: 'var(--bg-tertiary)', opacity: 0.4 }}
               contentStyle={{ backgroundColor: 'var(--bg-solid-secondary)', borderColor: 'var(--glass-border)', borderRadius: '10px' }}
               itemStyle={{ color: 'var(--text-primary)' }}
-              formatter={(value) => [`$${value.toLocaleString()}`, 'Total']}
+              formatter={(value) => [`₹${value.toLocaleString()}`, 'Total']}
             />
             <Bar dataKey="amount" fill="url(#barGradient)" radius={[6, 6, 0, 0]}>
               <defs>
@@ -594,9 +594,9 @@ const Chatbot = ({ expenses }) => {
     if (q.includes('spend the most') || q.includes('biggest expense') || q.includes('top spending') || q.includes('highest spending')) {
       if (expenses.length === 0) return "You haven't added any expenses yet! Start tracking to get insights.";
       const breakdown = sortedCategories.slice(0, 3).map(([cat, amt]) =>
-        `• **${cat}**: $${amt.toLocaleString(undefined, { minimumFractionDigits: 2 })}`
+        `• **${cat}**: ₹${amt.toLocaleString(undefined, { minimumFractionDigits: 2 })}`
       ).join('\n');
-      return `📊 Your top spending category is **${topCategory[0]}** at **$${topCategory[1].toLocaleString(undefined, { minimumFractionDigits: 2 })}** (${((topCategory[1] / total) * 100).toFixed(1)}% of total).\n\nHere's your top 3:\n${breakdown}`;
+      return `📊 Your top spending category is **${topCategory[0]}** at **₹${topCategory[1].toLocaleString(undefined, { minimumFractionDigits: 2 })}** (${((topCategory[1] / total) * 100).toFixed(1)}% of total).\n\nHere's your top 3:\n${breakdown}`;
     }
 
     // "How can I save money?"
@@ -611,7 +611,7 @@ const Chatbot = ({ expenses }) => {
       if ((catTotals['Food & Drink'] || catTotals['Food and Drink'])) {
         const foodTotal = (catTotals['Food & Drink'] || 0) + (catTotals['Food and Drink'] || 0);
         if (foodTotal / total > 0.15)
-          tips += "🍔 **Food & Drink** is " + ((foodTotal / total) * 100).toFixed(0) + "% of spending. Meal prepping could save you $" + (foodTotal * 0.3).toFixed(0) + "/month.\n\n";
+          tips += "🍔 **Food & Drink** is " + ((foodTotal / total) * 100).toFixed(0) + "% of spending. Meal prepping could save you ₹" + (foodTotal * 0.3).toFixed(0) + "/month.\n\n";
       }
       tips += "📋 **General tip:** Follow the 50/30/20 rule – 50% needs, 30% wants, 20% savings.";
       return tips;
@@ -620,7 +620,7 @@ const Chatbot = ({ expenses }) => {
     // "What's my total spending?"
     if (q.includes('total spending') || q.includes('total expenses') || q.includes('how much have i spent')) {
       if (expenses.length === 0) return "No expenses recorded yet. Start adding them!";
-      return `💵 Your total spending is **$${total.toLocaleString(undefined, { minimumFractionDigits: 2 })}** across **${expenses.length}** transactions in **${Object.keys(catTotals).length}** categories.`;
+      return `💵 Your total spending is **₹${total.toLocaleString(undefined, { minimumFractionDigits: 2 })}** across **${expenses.length}** transactions in **${Object.keys(catTotals).length}** categories.`;
     }
 
     // "Show my spending personality"
@@ -728,7 +728,7 @@ const Chatbot = ({ expenses }) => {
               onKeyDown={handleKeyDown}
             />
             <button className="chat-send-btn" onClick={() => handleSend()}>
-              <svg viewBox="0 0 24 24"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" /></svg>
+              <svg viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" /></svg>
             </button>
           </div>
         </div>
@@ -783,21 +783,21 @@ const Dashboard = ({
       <div className="stats-grid">
         <StatCard
           title="Total Balance"
-          value={`$${currentBalance.toLocaleString(undefined, { minimumFractionDigits: 2 })}`}
+          value={`₹${currentBalance.toLocaleString(undefined, { minimumFractionDigits: 2 })}`}
           trend={balanceTrend}
           isUp={true}
           color="var(--accent-color)"
         />
         <StatCard
           title="Total Expenses"
-          value={`$${totalExpenses.toLocaleString(undefined, { minimumFractionDigits: 2 })}`}
+          value={`₹${totalExpenses.toLocaleString(undefined, { minimumFractionDigits: 2 })}`}
           trend={expenseTrend}
           isUp={false}
           color="var(--accent-error)"
         />
         <StatCard
           title="Monthly Savings"
-          value="$8,450.00"
+          value="₹8,450.00"
           trend="5.1%"
           isUp={true}
           color="var(--accent-secondary)"
@@ -872,7 +872,7 @@ function App() {
     const fetchExpenses = async () => {
       try {
         setIsLoading(true);
-        const response = await fetch('http://localhost:5000/api/expenses');
+        const response = await fetch('/api/expenses');
         if (!response.ok) throw new Error('Failed to fetch expenses');
         const data = await response.json();
         setExpenses(data);
@@ -889,7 +889,7 @@ function App() {
 
   const addExpense = async (newExpense) => {
     try {
-      const response = await fetch('http://localhost:5000/api/expenses', {
+      const response = await fetch('/api/expenses', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

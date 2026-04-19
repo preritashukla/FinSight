@@ -71,9 +71,16 @@
   },
   {
     "amount": 99,
-    "category": "Food and Drink",
+    "category": "Food & Drink",
     "date": "2026-04-05",
     "note": "PowerShell test",
     "id": 1775396460279
+  },
+  {
+    "amount": 50,
+    "category": "Food & Drink",
+    "date": "2026-04-19",
+    "note": "Test fix",
+    "id": 1776576221128
   }
 ]
