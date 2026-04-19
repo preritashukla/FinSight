@@ -1877,3 +1877,207 @@ h1 {
   from { opacity: 0; transform: scale(0.95); }
   to { opacity: 1; transform: scale(1); }
 }
+
+/* ─── Type Toggle (Modal) ─── */
+.type-toggle {
+  display: flex;
+  background: var(--bg-solid-tertiary);
+  border: 1px solid var(--glass-border);
+  padding: 4px;
+  border-radius: var(--border-radius-sm);
+  margin-bottom: 8px;
+}
+
+.type-btn {
+  flex: 1;
+  padding: 8px;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+  border-radius: calc(var(--border-radius-sm) - 4px);
+  transition: var(--transition-fast);
+}
+
+.type-btn.active.expense {
+  background: var(--accent-error);
+  color: white;
+  box-shadow: 0 4px 12px rgba(251, 113, 133, 0.3);
+}
+
+.type-btn.active.income {
+  background: var(--accent-secondary);
+  color: white;
+  box-shadow: 0 4px 12px rgba(52, 211, 153, 0.3);
+}
+
+/* ─── Insights Page Enhancements ─── */
+.insights-page .stat-card {
+  border-top-width: 4px;
+  border-top-style: solid;
+  border-top-color: var(--card-accent);
+}
+
+.chart-container.full-width {
+  grid-column: 1 / -1;
+}
+
+.error-state, .empty-state {
+  background: var(--bg-secondary);
+  backdrop-filter: blur(20px);
+  border: 1px dashed var(--glass-border);
+  border-radius: var(--border-radius);
+  animation: fadeInScale 0.5s ease-out;
+}
+
+@media (max-width: 768px) {
+  .chart-container.full-width {
+    grid-column: auto;
+  }
+}
+
+/* ─── Premium UI Overhaul ─── */
+
+/* Modern Form Enhancements */
+.form-group {
+  position: relative;
+  margin-bottom: 24px;
+}
+
+.input-icon-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.input-icon-wrapper svg {
+  position: absolute;
+  left: 14px;
+  width: 18px;
+  height: 18px;
+  color: var(--text-secondary);
+  pointer-events: none;
+  transition: var(--transition);
+  z-index: 5;
+}
+
+.input-icon-wrapper input,
+.input-icon-wrapper select,
+.input-icon-wrapper textarea {
+  padding-left: 44px !important;
+  border-radius: var(--border-radius-sm);
+  background: var(--bg-solid-tertiary);
+  border: 1px solid var(--glass-border);
+  color: var(--text-primary);
+  width: 100%;
+  padding: 14px;
+  font-size: 14px;
+  transition: var(--transition);
+}
+
+.input-icon-wrapper:focus-within svg {
+  color: var(--accent-color);
+  transform: scale(1.1);
+}
+
+.input-icon-wrapper input:focus,
+.input-icon-wrapper select:focus,
+.input-icon-wrapper textarea:focus {
+  outline: none;
+  border-color: var(--accent-color);
+  box-shadow: 0 0 0 4px rgba(129, 140, 248, 0.15);
+  background: var(--bg-solid-secondary);
+}
+
+/* Floating Label Logic Emulation */
+.field-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+  margin-left: 4px;
+}
+
+/* Modern Gradient Submit Button */
+.btn-premium {
+  width: 100%;
+  background: var(--gradient-accent);
+  background-size: 200% 200%;
+  color: white;
+  border: none;
+  padding: 16px;
+  border-radius: var(--border-radius-sm);
+  font-weight: 800;
+  font-size: 15px;
+  cursor: pointer;
+  transition: var(--transition);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  box-shadow: 0 8px 24px rgba(129, 140, 248, 0.3);
+  margin-top: 10px;
+}
+
+.btn-premium:hover:not(:disabled) {
+  background-position: right center;
+  transform: translateY(-2px);
+  box-shadow: 0 12px 32px rgba(129, 140, 248, 0.45);
+}
+
+.btn-premium:active:not(:disabled) {
+  transform: translateY(0) scale(0.98);
+}
+
+.btn-premium:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  filter: grayscale(0.5);
+}
+
+/* Enhanced Cards */
+.premium-card {
+  background: var(--bg-secondary);
+  backdrop-filter: blur(24px);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--border-radius);
+  padding: 28px;
+  box-shadow: var(--shadow-lg);
+  transition: var(--transition);
+}
+
+.premium-card:hover {
+  border-color: rgba(129, 140, 248, 0.25);
+  box-shadow: 0 32px 64px rgba(0, 0, 0, 0.4);
+}
+
+/* Error States */
+.input-error {
+  border-color: var(--accent-error) !important;
+  background: rgba(251, 113, 133, 0.05) !important;
+}
+
+.error-text {
+  color: var(--accent-error);
+  font-size: 11px;
+  font-weight: 600;
+  margin-top: 6px;
+  margin-left: 12px;
+  display: block;
+}
+
+/* Animations */
+@keyframes fadeInSlideUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-reveal {
+  animation: fadeInSlideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+

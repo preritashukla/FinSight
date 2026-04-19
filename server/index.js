@@ -62,6 +62,11 @@ app.post('/api/expenses', async (req, res) => {
       return res.status(400).json({ error: 'Category is required' });
     }
 
+    // Default type to 'expense' if not provided
+    if (!newExpense.type) {
+      newExpense.type = 'expense';
+    }
+
     // Ensure numeric amount
     newExpense.amount = parseFloat(newExpense.amount);
 

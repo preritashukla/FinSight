@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react'
-import { Routes, Route, Navigate, useNavigate } from 'react-router-dom'
+import { Routes, Route, Navigate, useNavigate, useLocation, Link, NavLink } from 'react-router-dom'
+import { motion, AnimatePresence } from 'framer-motion'
 import Login from './Login.jsx'
+import InsightsPage from './Insights.jsx'
 import {
   PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip, Legend,
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, AreaChart, Area
@@ -56,10 +58,12 @@ const ToastContainer = ({ toasts, onRemove }) => (
 
 // ─── Sidebar ───
 const Sidebar = React.memo(({ onAddExpense }) => {
+  const navigate = useNavigate();
+  const location = useLocation();
   const navItems = useMemo(() => [
     { name: 'Dashboard', icon: 'M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z' },
     { name: 'Add Expense', icon: 'M12 4v16m8-8H4', onClick: onAddExpense },
-    { name: 'Insights', icon: 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2v12a2 2 0 01-2 2h-2a2 2 0 01-2-2z' }
+    { name: 'Insights', icon: 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2v12a2 2 0 01-2 2h-2a2 2 0 01-2-2z', path: '/insights' }
   ], [onAddExpense]);
 
   return (
@@ -77,18 +81,44 @@ const Sidebar = React.memo(({ onAddExpense }) => {
         Fin<span>Sight</span>
       </div>
       <div className="nav-links">
-        {navItems.map((item, index) => (
-          <div
-            key={item.name}
-            className={`nav-item ${index === 0 ? 'active' : ''}`}
-            onClick={item.onClick}
-          >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d={item.icon} />
-            </svg>
-            {item.name}
-          </div>
-        ))}
+        {navItems.map((item, index) => {
+          const isDashboard = !item.path && item.name === 'Dashboard';
+          const resolvedPath = isDashboard ? '/dashboard' : item.path;
+          const isActive = resolvedPath && location.pathname === resolvedPath;
+          const isSpecial = !item.path && item.onClick;
+          
+          if (isSpecial) {
+            return (
+              <div
+                key={item.name}
+                className="nav-item"
+                onClick={(e) => {
+                  console.log(`Special action clicked: ${item.name}`);
+                  item.onClick(e);
+                }}
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d={item.icon} />
+                </svg>
+                {item.name}
+              </div>
+            );
+          }
+
+          return (
+            <Link
+              key={item.name}
+              to={resolvedPath}
+              className={`nav-item ${isActive ? 'active' : ''}`}
+              onClick={() => console.log(`Navigation link clicked: ${item.name} -> ${resolvedPath}`)}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d={item.icon} />
+              </svg>
+              {item.name}
+            </Link>
+          );
+        })}
       </div>
     </div>
   );
@@ -242,7 +272,8 @@ const ExpenseModal = React.memo(({ isOpen, onClose, onAdd }) => {
     amount: '',
     category: 'General',
     date: new Date().toISOString().split('T')[0],
-    note: ''
+    note: '',
+    type: 'expense'
   });
 
   const [isSaving, setIsSaving] = useState(false);
@@ -251,10 +282,10 @@ const ExpenseModal = React.memo(({ isOpen, onClose, onAdd }) => {
   const validate = () => {
     const newErrors = {};
     if (!formData.amount || isNaN(formData.amount) || parseFloat(formData.amount) <= 0) {
-      newErrors.amount = 'Please enter a valid positive amount';
+      newErrors.amount = 'Amount must be positive';
     }
     if (!formData.category) {
-      newErrors.category = 'Please select a category';
+      newErrors.category = 'Select a category';
     }
     if (!formData.date) {
       newErrors.date = 'Date is required';
@@ -279,7 +310,8 @@ const ExpenseModal = React.memo(({ isOpen, onClose, onAdd }) => {
         amount: '',
         category: 'General',
         date: new Date().toISOString().split('T')[0],
-        note: ''
+        note: '',
+        type: 'expense'
       });
       onClose();
     } catch (err) {
@@ -289,77 +321,171 @@ const ExpenseModal = React.memo(({ isOpen, onClose, onAdd }) => {
     }
   };
 
-  if (!isOpen) return null;
+  const modalVariants = {
+    hidden: { opacity: 0, scale: 0.9, y: 20 },
+    visible: { opacity: 1, scale: 1, y: 0, transition: { type: 'spring', damping: 25, stiffness: 300 } },
+    exit: { opacity: 0, scale: 0.9, y: 20, transition: { duration: 0.2 } }
+  };
+
+  const overlayVariants = {
+    hidden: { opacity: 0 },
+    visible: { opacity: 1 },
+    exit: { opacity: 0 }
+  };
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content" onClick={e => e.stopPropagation()}>
-        <div className="modal-header">
-          <h2>Add New Expense</h2>
-          <button className="close-btn" onClick={onClose}>&times;</button>
-        </div>
-        <form onSubmit={handleSubmit}>
-          <div className="form-group">
-            <label>Amount (₹)</label>
-            <input
-              type="number"
-              placeholder="0.00"
-              value={formData.amount}
-              onChange={e => setFormData({ ...formData, amount: e.target.value })}
-              className={errors.amount ? 'error' : ''}
-              required
-              step="0.01"
-              autoFocus
-              disabled={isSaving}
-            />
-            {errors.amount && <span className="error-text" style={{ color: 'var(--accent-error)', fontSize: '11px', marginTop: '4px' }}>{errors.amount}</span>}
-          </div>
-          <div className="form-group">
-            <label>Category</label>
-            <select
-              value={formData.category}
-              onChange={e => setFormData({ ...formData, category: e.target.value })}
-            >
-              <option>General</option>
-              <option>Food & Drink</option>
-              <option>Housing</option>
-              <option>Transport</option>
-              <option>Utilities</option>
-              <option>Entertainment</option>
-              <option>Shopping</option>
-            </select>
-          </div>
-          <div className="form-group">
-            <label>Date</label>
-            <input
-              type="date"
-              value={formData.date}
-              onChange={e => setFormData({ ...formData, date: e.target.value })}
-              required
-            />
-          </div>
-          <div className="form-group">
-            <label>Note</label>
-            <textarea
-              placeholder="What was this for?"
-              value={formData.note}
-              onChange={e => setFormData({ ...formData, note: e.target.value })}
-            />
-          </div>
-          <div className="form-actions">
-            <button type="button" className="btn-secondary" onClick={onClose} disabled={isSaving}>Cancel</button>
-            <button type="submit" className="btn-primary" disabled={isSaving}>
-              {isSaving ? (
-                <>
-                  <div className="spinner-sm"></div>
-                  Saving...
-                </>
-              ) : 'Save Expense'}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+    <AnimatePresence>
+      {isOpen && (
+        <motion.div 
+          className="modal-overlay" 
+          initial="hidden"
+          animate="visible"
+          exit="exit"
+          variants={overlayVariants}
+          onClick={onClose}
+        >
+          <motion.div 
+            className="modal-content premium-card" 
+            variants={modalVariants}
+            onClick={e => e.stopPropagation()}
+            style={{ padding: '40px' }}
+          >
+            <div className="modal-header" style={{ marginBottom: '32px' }}>
+              <h2 style={{ fontSize: '24px', margin: 0 }}>Add New Transaction</h2>
+              <button className="close-btn" onClick={onClose}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="12"></line></svg>
+              </button>
+            </div>
+
+            <form onSubmit={handleSubmit}>
+              <div className="form-group">
+                <label className="field-label">Transaction Type</label>
+                <div className="type-toggle" style={{ background: 'var(--bg-solid-tertiary)', padding: '4px', borderRadius: '12px' }}>
+                  <button 
+                    type="button" 
+                    className={`type-btn ${formData.type === 'expense' ? 'active expense' : ''}`}
+                    onClick={() => setFormData({ ...formData, type: 'expense' })}
+                    style={{ flex: 1, padding: '10px' }}
+                  >
+                    Expense
+                  </button>
+                  <button 
+                    type="button" 
+                    className={`type-btn ${formData.type === 'income' ? 'active income' : ''}`}
+                    onClick={() => setFormData({ ...formData, type: 'income' })}
+                    style={{ flex: 1, padding: '10px' }}
+                  >
+                    Income
+                  </button>
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label className="field-label">Amount (₹)</label>
+                <div className="input-icon-wrapper">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="12" y1="1" x2="12" y2="23"></line>
+                    <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+                  </svg>
+                  <input
+                    type="number"
+                    placeholder="0.00"
+                    value={formData.amount}
+                    onChange={e => setFormData({ ...formData, amount: e.target.value })}
+                    className={errors.amount ? 'input-error' : ''}
+                    step="0.01"
+                    autoFocus
+                    disabled={isSaving}
+                  />
+                </div>
+                {errors.amount && <span className="error-text">{errors.amount}</span>}
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+                <div className="form-group">
+                  <label className="field-label">Category</label>
+                  <div className="input-icon-wrapper">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path>
+                      <line x1="7" y1="7" x2="7.01" y2="7"></line>
+                    </svg>
+                    <select
+                      value={formData.category}
+                      onChange={e => setFormData({ ...formData, category: e.target.value })}
+                    >
+                      <option>General</option>
+                      <option>Food & Drink</option>
+                      <option>Housing</option>
+                      <option>Transport</option>
+                      <option>Utilities</option>
+                      <option>Entertainment</option>
+                      <option>Shopping</option>
+                      <option>Investment</option>
+                      <option>Salary</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="form-group">
+                  <label className="field-label">Date</label>
+                  <div className="input-icon-wrapper">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                      <line x1="16" y1="2" x2="16" y2="6"></line>
+                      <line x1="8" y1="2" x2="8" y2="6"></line>
+                      <line x1="3" y1="10" x2="21" y2="10"></line>
+                    </svg>
+                    <input
+                      type="date"
+                      value={formData.date}
+                      onChange={e => setFormData({ ...formData, date: e.target.value })}
+                      required
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label className="field-label">Description (Optional)</label>
+                <div className="input-icon-wrapper">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                  </svg>
+                  <textarea
+                    placeholder="What was this for?"
+                    value={formData.note}
+                    onChange={e => setFormData({ ...formData, note: e.target.value })}
+                    rows="2"
+                    style={{ padding: '12px 14px 12px 44px', resize: 'none' }}
+                  />
+                </div>
+              </div>
+
+              <div className="form-actions" style={{ marginTop: '32px' }}>
+                <button 
+                  type="submit" 
+                  className="btn-premium" 
+                  disabled={isSaving}
+                >
+                  {isSaving ? (
+                    <>
+                      <div className="spinner-sm"></div>
+                      Processing...
+                    </>
+                  ) : (
+                    <>
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                      Confirm Transaction
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 });
 ExpenseModal.displayName = 'ExpenseModal';
@@ -1109,8 +1235,9 @@ const Dashboard = React.memo(({
   setEndDate
 }) => {
   const initialBalance = 24562.00;
-  const totalExpenses = useMemo(() => filteredExpenses.reduce((sum, exp) => sum + exp.amount, 0), [filteredExpenses]);
-  const currentBalance = useMemo(() => initialBalance - totalExpenses, [totalExpenses]);
+  const totalIncome = useMemo(() => expenses.filter(e => e.type === 'income').reduce((sum, e) => sum + e.amount, 0), [expenses]);
+  const totalExpenses = useMemo(() => expenses.filter(e => e.type === 'expense' || !e.type).reduce((sum, e) => sum + e.amount, 0), [expenses]);
+  const currentBalance = useMemo(() => initialBalance + totalIncome - totalExpenses, [totalIncome, totalExpenses]);
 
   const balanceTrend = "3.2%";
   const expenseTrend = expenses.length > 0 ? "8.4%" : "0.0%";
@@ -1169,9 +1296,9 @@ const Dashboard = React.memo(({
           color="var(--accent-error)"
         />
         <StatCard
-          title="Monthly Savings"
-          value="₹8,450.00"
-          trend="5.1%"
+          title="Total Income"
+          value={`₹${totalIncome.toLocaleString(undefined, { minimumFractionDigits: 2 })}`}
+          trend="12.5%"
           isUp={true}
           color="var(--accent-secondary)"
         />
@@ -1218,16 +1345,14 @@ const Dashboard = React.memo(({
 });
 Dashboard.displayName = 'Dashboard';
 
-// ─── Dashboard Page (authenticated route wrapper) ───
-function DashboardPage() {
+// ─── App – routing shell ───
+function App() {
   const navigate = useNavigate();
+  const location = useLocation();
 
   // Read user from localStorage
   const storedUser = localStorage.getItem('user');
   const user = storedUser ? JSON.parse(storedUser) : null;
-
-  // Redirect to login if not authenticated
-  if (!user) return <Navigate to="/login" replace />;
 
   const [expenses, setExpenses] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -1302,7 +1427,7 @@ function DashboardPage() {
     } catch (err) {
       console.error('Error adding expense:', err);
       addToast({ type: 'error', title: 'Error', message: 'Failed to save expense. Please try again.' });
-      throw err; // Re-throw for modal handling
+      throw err;
     }
   }, [addToast]);
 
@@ -1311,67 +1436,78 @@ function DashboardPage() {
     navigate('/login', { replace: true });
   }, [navigate]);
 
-  const openModal = useCallback(() => setIsModalOpen(true), []);
-  const closeModal = useCallback(() => setIsModalOpen(false), []);
+  const openModal = useCallback(() => {
+    console.log('Opening modal');
+    setIsModalOpen(true);
+  }, []);
+  const closeModal = useCallback(() => {
+    console.log('Closing modal');
+    setIsModalOpen(false);
+  }, []);
+
+  // If not logged in and not on login page, redirect
+  useEffect(() => {
+    if (!user && location.pathname !== '/login') {
+      navigate('/login', { replace: true });
+    }
+  }, [user, location.pathname, navigate]);
+
+  if (!user && location.pathname !== '/login') return null;
 
   return (
     <div className="app-container">
-      <Sidebar onAddExpense={openModal} />
-      <div className="main-wrapper">
-        <Navbar
-          theme={theme}
-          onThemeToggle={toggleTheme}
-          userName={user.name}
-          onLogout={handleLogout}
-          searchQuery={searchQuery}
-          onSearchChange={setSearchQuery}
-        />
-        {isLoading ? (
-          <div className="content">
-            <div className="loading-container">
-              <div className="loading-spinner"></div>
-              <div className="loading-text">Loading your financial data...</div>
-            </div>
-          </div>
-        ) : error ? (
-          <div className="content" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}>
-            <div style={{ color: 'var(--accent-error)', marginBottom: '1rem', fontSize: '16px' }}>{error}</div>
-            <button className="btn-secondary" onClick={() => window.location.reload()}>Retry</button>
-          </div>
-        ) : (
-          <Dashboard
-            expenses={expenses}
-            filteredExpenses={filteredExpenses}
-            onAddExpense={openModal}
-            categoryFilter={categoryFilter}
-            setCategoryFilter={setCategoryFilter}
-            startDate={startDate}
-            setStartDate={setStartDate}
-            endDate={endDate}
-            setEndDate={setEndDate}
+      {user && location.pathname !== '/login' && <Sidebar onAddExpense={openModal} />}
+      <div className={user && location.pathname !== '/login' ? "main-wrapper" : ""}>
+        {user && location.pathname !== '/login' && (
+          <Navbar
+            theme={theme}
+            onThemeToggle={toggleTheme}
+            userName={user.name}
+            onLogout={handleLogout}
+            searchQuery={searchQuery}
+            onSearchChange={setSearchQuery}
           />
         )}
+        
+        <Routes>
+          <Route path="/login" element={<Login />} />
+          <Route path="/dashboard" element={
+            <Dashboard
+              expenses={expenses}
+              filteredExpenses={filteredExpenses}
+              onAddExpense={openModal}
+              categoryFilter={categoryFilter}
+              setCategoryFilter={setCategoryFilter}
+              startDate={startDate}
+              setStartDate={setStartDate}
+              endDate={endDate}
+              setEndDate={setEndDate}
+            />
+          } />
+          <Route path="/insights" element={
+            <InsightsPage 
+              expenses={expenses}
+              isLoading={isLoading}
+              error={error}
+            />
+          } />
+          <Route path="/" element={<Navigate to="/dashboard" replace />} />
+          <Route path="*" element={<Navigate to="/dashboard" replace />} />
+        </Routes>
       </div>
-      <ExpenseModal
-        isOpen={isModalOpen}
-        onClose={closeModal}
-        onAdd={addExpense}
-      />
-      <Chatbot expenses={expenses} />
-      <ToastContainer toasts={toasts} onRemove={removeToast} />
-    </div>
-  );
-}
 
-// ─── App – routing shell ───
-function App() {
-  return (
-    <Routes>
-      <Route path="/login" element={<Login />} />
-      <Route path="/dashboard" element={<DashboardPage />} />
-      {/* Default: redirect root to /dashboard (DashboardPage itself redirects to /login if not authed) */}
-      <Route path="*" element={<Navigate to="/dashboard" replace />} />
-    </Routes>
+      {user && location.pathname !== '/login' && (
+        <>
+          <ExpenseModal
+            isOpen={isModalOpen}
+            onClose={closeModal}
+            onAdd={addExpense}
+          />
+          <Chatbot expenses={expenses} />
+          <ToastContainer toasts={toasts} onRemove={removeToast} />
+        </>
+      )}
+    </div>
   );
 }
 

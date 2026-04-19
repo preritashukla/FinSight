@@ -4,97 +4,119 @@
     "amount": 45.5,
     "category": "Food & Drink",
     "date": "2024-03-12",
-    "note": "Lunch at Joe's"
+    "note": "Lunch at Joe's",
+    "type": "expense"
   },
   {
     "id": 2,
     "amount": 1200,
     "category": "Housing",
     "date": "2024-03-01",
-    "note": "Monthly Rent"
+    "note": "Monthly Rent",
+    "type": "expense"
   },
   {
     "id": 3,
     "amount": 65,
     "category": "Transport",
     "date": "2024-03-15",
-    "note": "Fuel"
+    "note": "Fuel",
+    "type": "expense"
+  },
+  {
+    "id": 10,
+    "amount": 5000,
+    "category": "Salary",
+    "date": "2024-03-01",
+    "note": "Regular Income",
+    "type": "income"
+  },
+  {
+    "id": 11,
+    "amount": 5000,
+    "category": "Salary",
+    "date": "2024-02-01",
+    "note": "Regular Income",
+    "type": "income"
   },
   {
     "id": 4,
     "amount": 85.2,
     "category": "Entertainment",
     "date": "2024-03-20",
-    "note": "Movie night"
+    "note": "Movie night",
+    "type": "expense"
   },
   {
     "id": 5,
     "amount": 210,
     "category": "Shopping",
     "date": "2024-03-22",
-    "note": "New clothes"
+    "note": "New clothes",
+    "type": "expense"
   },
   {
     "id": 6,
     "amount": 55,
     "category": "Utilities",
     "date": "2024-03-25",
-    "note": "Internet"
+    "note": "Internet",
+    "type": "expense"
   },
   {
     "id": 7,
     "amount": 42,
     "category": "Food & Drink",
     "date": "2024-02-12",
-    "note": "Groceries"
+    "note": "Groceries",
+    "type": "expense"
   },
   {
     "id": 8,
     "amount": 1200,
     "category": "Housing",
     "date": "2024-02-01",
-    "note": "Monthly Rent"
+    "note": "Monthly Rent",
+    "type": "expense"
   },
   {
     "id": 9,
     "amount": 150,
     "category": "Transport",
     "date": "2024-02-18",
-    "note": "Car repair"
+    "note": "Car repair",
+    "type": "expense"
   },
   {
     "amount": 25,
     "category": "Food & Drink",
     "date": "2026-04-05",
     "note": "Lunch from dev server",
-    "id": 1775395880780
+    "id": 1775395880780,
+    "type": "expense"
   },
   {
-    "amount": 99,
-    "category": "Food & Drink",
-    "date": "2026-04-05",
-    "note": "PowerShell test",
-    "id": 1775396460279
-  },
-  {
-    "amount": 50,
-    "category": "Food & Drink",
-    "date": "2026-04-19",
-    "note": "Test fix",
-    "id": 1776576221128
+    "amount": 4500,
+    "category": "Freelance",
+    "date": "2026-04-10",
+    "note": "Project milestone",
+    "id": 1775395880781,
+    "type": "income"
   },
   {
     "amount": 500,
-    "category": "Food & Drink",
+    "category": "General",
     "date": "2026-04-19",
-    "note": "Lunch test",
-    "id": 1776579210532
+    "note": "Bonus Income",
+    "type": "income",
+    "id": 1776640657924
   },
   {
     "amount": 500,
-    "category": "Food & Drink",
+    "category": "General",
     "date": "2026-04-19",
-    "note": "Testing toast and loading state",
-    "id": 1776599470705
+    "note": "Dinner with friends",
+    "type": "expense",
+    "id": 1776641594200
   }
 ]
