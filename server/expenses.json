@@ -82,5 +82,12 @@
     "date": "2026-04-19",
     "note": "Test fix",
     "id": 1776576221128
+  },
+  {
+    "amount": 500,
+    "category": "Food & Drink",
+    "date": "2026-04-19",
+    "note": "Lunch test",
+    "id": 1776579210532
   }
 ]

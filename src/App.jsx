@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react'
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { Routes, Route, Navigate, useNavigate } from 'react-router-dom'
 import Login from './Login.jsx'
 import {
@@ -7,21 +7,22 @@ import {
 } from 'recharts';
 
 // ─── Theme Toggle ───
-const ThemeToggle = ({ theme, onToggle }) => (
+const ThemeToggle = React.memo(({ theme, onToggle }) => (
   <div className="theme-toggle" onClick={onToggle} title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}>
     <div className={`theme-toggle-knob ${theme === 'light' ? 'light' : ''}`}>
       {theme === 'dark' ? '🌙' : '☀️'}
     </div>
   </div>
-);
+));
+ThemeToggle.displayName = 'ThemeToggle';
 
 // ─── Sidebar ───
-const Sidebar = ({ onAddExpense }) => {
-  const navItems = [
+const Sidebar = React.memo(({ onAddExpense }) => {
+  const navItems = useMemo(() => [
     { name: 'Dashboard', icon: 'M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z' },
     { name: 'Add Expense', icon: 'M12 4v16m8-8H4', onClick: onAddExpense },
     { name: 'Insights', icon: 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2v12a2 2 0 01-2 2h-2a2 2 0 01-2-2z' }
-  ];
+  ], [onAddExpense]);
 
   return (
     <div className="sidebar">
@@ -53,14 +54,15 @@ const Sidebar = ({ onAddExpense }) => {
       </div>
     </div>
   );
-};
+});
+Sidebar.displayName = 'Sidebar';
 
 // ─── Navbar ───
-const Navbar = ({ theme, onThemeToggle, userName, onLogout }) => {
+const Navbar = React.memo(({ theme, onThemeToggle, userName, onLogout }) => {
   // Derive initials for avatar
-  const initials = userName
+  const initials = useMemo(() => userName
     ? userName.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2)
-    : '?';
+    : '?', [userName]);
 
   return (
     <nav className="navbar">
@@ -88,10 +90,11 @@ const Navbar = ({ theme, onThemeToggle, userName, onLogout }) => {
       </div>
     </nav>
   );
-};
+});
+Navbar.displayName = 'Navbar';
 
 // ─── Stat Card ───
-const StatCard = ({ title, value, trend, isUp, color }) => {
+const StatCard = React.memo(({ title, value, trend, isUp, color }) => {
   return (
     <div className="stat-card" style={{ '--card-accent': color || 'var(--accent-color)' }}>
       <div className="stat-label">
@@ -108,7 +111,8 @@ const StatCard = ({ title, value, trend, isUp, color }) => {
       </div>
     </div>
   );
-};
+});
+StatCard.displayName = 'StatCard';
 
 // ─── Spending Personality Tag ───
 const PERSONALITY_PROFILES = [
@@ -166,7 +170,7 @@ const PERSONALITY_PROFILES = [
   }
 ];
 
-const SpendingPersonalityTag = ({ expenses }) => {
+const SpendingPersonalityTag = React.memo(({ expenses }) => {
   const personality = useMemo(() => {
     if (expenses.length === 0) return PERSONALITY_PROFILES[3]; // Budget Rookie
     for (const profile of PERSONALITY_PROFILES) {
@@ -187,10 +191,11 @@ const SpendingPersonalityTag = ({ expenses }) => {
       </div>
     </div>
   );
-};
+});
+SpendingPersonalityTag.displayName = 'SpendingPersonalityTag';
 
 // ─── Expense Modal ───
-const ExpenseModal = ({ isOpen, onClose, onAdd }) => {
+const ExpenseModal = React.memo(({ isOpen, onClose, onAdd }) => {
   const [formData, setFormData] = useState({
     amount: '',
     category: 'General',
@@ -198,9 +203,7 @@ const ExpenseModal = ({ isOpen, onClose, onAdd }) => {
     note: ''
   });
 
-  if (!isOpen) return null;
-
-  const handleSubmit = (e) => {
+  const handleSubmit = useCallback((e) => {
     e.preventDefault();
     if (!formData.amount || isNaN(formData.amount)) return;
 
@@ -217,7 +220,9 @@ const ExpenseModal = ({ isOpen, onClose, onAdd }) => {
       note: ''
     });
     onClose();
-  };
+  }, [formData, onAdd, onClose]);
+
+  if (!isOpen) return null;
 
   return (
     <div className="modal-overlay" onClick={onClose}>
@@ -279,10 +284,27 @@ const ExpenseModal = ({ isOpen, onClose, onAdd }) => {
       </div>
     </div>
   );
-};
+});
+ExpenseModal.displayName = 'ExpenseModal';
+
+const TransactionItem = React.memo(({ exp, idx }) => (
+  <div className="transaction-item" style={{ animationDelay: `${idx * 0.05}s` }}>
+    <div className="transaction-icon">
+      {exp.category.charAt(0)}
+    </div>
+    <div className="transaction-info">
+      <div className="transaction-name">{exp.note || exp.category}</div>
+      <div className="transaction-date">{exp.date} • {exp.category}</div>
+    </div>
+    <div className="transaction-amount">
+      -₹{exp.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+    </div>
+  </div>
+));
+TransactionItem.displayName = 'TransactionItem';
 
 // ─── Transaction List ───
-const TransactionList = ({ expenses, onClearFilters, hasFilters }) => {
+const TransactionList = React.memo(({ expenses, onClearFilters, hasFilters }) => {
   return (
     <div className="transaction-section">
       <div className="section-header">
@@ -300,27 +322,17 @@ const TransactionList = ({ expenses, onClearFilters, hasFilters }) => {
           </div>
         ) : (
           expenses.slice().reverse().map((exp, idx) => (
-            <div key={exp.id} className="transaction-item" style={{ animationDelay: `${idx * 0.05}s` }}>
-              <div className="transaction-icon">
-                {exp.category.charAt(0)}
-              </div>
-              <div className="transaction-info">
-                <div className="transaction-name">{exp.note || exp.category}</div>
-                <div className="transaction-date">{exp.date} • {exp.category}</div>
-              </div>
-              <div className="transaction-amount">
-                -₹{exp.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
-              </div>
-            </div>
+            <TransactionItem key={exp.id} exp={exp} idx={idx} />
           ))
         )}
       </div>
     </div>
   );
-};
+});
+TransactionList.displayName = 'TransactionList';
 
 // ─── Filter Bar ───
-const FilterBar = ({ categoryFilter, setCategoryFilter, startDate, setStartDate, endDate, setEndDate, categories }) => {
+const FilterBar = React.memo(({ categoryFilter, setCategoryFilter, startDate, setStartDate, endDate, setEndDate, categories }) => {
   return (
     <div className="filter-bar">
       <div className="filter-group">
@@ -347,10 +359,11 @@ const FilterBar = ({ categoryFilter, setCategoryFilter, startDate, setStartDate,
       )}
     </div>
   );
-};
+});
+FilterBar.displayName = 'FilterBar';
 
 // ─── Insights Panel ───
-const InsightsPanel = ({ expenses }) => {
+const InsightsPanel = React.memo(({ expenses }) => {
   const insights = useMemo(() => {
     if (expenses.length === 0) return null;
 
@@ -414,13 +427,14 @@ const InsightsPanel = ({ expenses }) => {
       </div>
     </div>
   );
-};
+});
+InsightsPanel.displayName = 'InsightsPanel';
 
 // ─── Chart Colors ───
 const CHART_COLORS = ['#818cf8', '#34d399', '#fbbf24', '#fb7185', '#c084fc', '#f472b6', '#22d3ee'];
 
 // ─── Category Pie Chart ───
-const CategorySpendingChart = ({ expenses }) => {
+const CategorySpendingChart = React.memo(({ expenses }) => {
   const data = useMemo(() => {
     const categoryTotals = expenses.reduce((acc, exp) => {
       acc[exp.category] = (acc[exp.category] || 0) + exp.amount;
@@ -463,10 +477,11 @@ const CategorySpendingChart = ({ expenses }) => {
       </div>
     </div>
   );
-};
+});
+CategorySpendingChart.displayName = 'CategorySpendingChart';
 
 // ─── Monthly Bar Chart ───
-const MonthlyExpensesChart = ({ expenses }) => {
+const MonthlyExpensesChart = React.memo(({ expenses }) => {
   const data = useMemo(() => {
     if (!expenses || expenses.length === 0) return [];
 
@@ -547,10 +562,11 @@ const MonthlyExpensesChart = ({ expenses }) => {
       </div>
     </div>
   );
-};
+});
+MonthlyExpensesChart.displayName = 'MonthlyExpensesChart';
 
 // ─── Chatbot ───
-const Chatbot = ({ expenses }) => {
+const Chatbot = React.memo(({ expenses }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState([
     { type: 'bot', text: "Hi! 👋 I'm your FinSight AI assistant. Ask me about your spending, or try one of the quick questions below!" }
@@ -559,22 +575,22 @@ const Chatbot = ({ expenses }) => {
   const [isTyping, setIsTyping] = useState(false);
   const messagesEndRef = useRef(null);
 
-  const scrollToBottom = () => {
+  const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
+  }, []);
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages, isTyping]);
+  }, [messages, isTyping, scrollToBottom]);
 
-  const suggestions = [
+  const suggestions = useMemo(() => [
     "Where do I spend the most?",
     "How can I save money?",
     "What's my total spending?",
     "Show my spending personality"
-  ];
+  ], []);
 
-  const generateResponse = (question) => {
+  const generateResponse = useCallback((question) => {
     const q = question.toLowerCase();
     const total = expenses.reduce((s, e) => s + e.amount, 0);
 
@@ -655,22 +671,9 @@ const Chatbot = ({ expenses }) => {
 
     // Fallback
     return `I can help with questions like:\n• "Where do I spend the most?"\n• "How can I save money?"\n• "What's my total spending?"\n• "Show my spending personality"\n\nTry one of those!`;
-  };
+  }, [expenses]);
 
-  const formatMessage = (text) => {
-    // Simple markdown-like bold
-    return text.split('\n').map((line, i) => {
-      const parts = line.split(/(\*\*.*?\*\*)/g).map((part, j) => {
-        if (part.startsWith('**') && part.endsWith('**')) {
-          return <strong key={j}>{part.slice(2, -2)}</strong>;
-        }
-        return part;
-      });
-      return <React.Fragment key={i}>{parts}{i < text.split('\n').length - 1 && <br />}</React.Fragment>;
-    });
-  };
-
-  const handleSend = (text) => {
+  const handleSend = useCallback((text) => {
     const msgText = text || input.trim();
     if (!msgText) return;
 
@@ -683,7 +686,7 @@ const Chatbot = ({ expenses }) => {
       setMessages(prev => [...prev, { type: 'bot', text: response }]);
       setIsTyping(false);
     }, 800 + Math.random() * 600);
-  };
+  }, [input, generateResponse]);
 
   const handleKeyDown = (e) => {
     if (e.key === 'Enter') handleSend();
@@ -712,7 +715,16 @@ const Chatbot = ({ expenses }) => {
           <div className="chat-messages">
             {messages.map((msg, i) => (
               <div key={i} className={`chat-message ${msg.type}`}>
-                {msg.type === 'bot' ? formatMessage(msg.text) : msg.text}
+                {msg.type === 'bot' ? (
+                  msg.text.split('\n').map((line, k) => (
+                    <span key={k}>
+                      {line.split(/(\*\*.*?\*\*)/g).map((part, j) => (
+                        part.startsWith('**') && part.endsWith('**') ? <strong key={j}>{part.slice(2, -2)}</strong> : part
+                      ))}
+                      {k < msg.text.split('\n').length - 1 && <br />}
+                    </span>
+                  ))
+                ) : msg.text}
               </div>
             ))}
             {isTyping && (
@@ -750,10 +762,11 @@ const Chatbot = ({ expenses }) => {
       )}
     </>
   );
-};
+});
+Chatbot.displayName = 'Chatbot';
 
 // ─── Dashboard ───
-const Dashboard = ({
+const Dashboard = React.memo(({
   expenses,
   filteredExpenses,
   onAddExpense,
@@ -765,8 +778,8 @@ const Dashboard = ({
   setEndDate
 }) => {
   const initialBalance = 24562.00;
-  const totalExpenses = expenses.reduce((sum, exp) => sum + exp.amount, 0);
-  const currentBalance = initialBalance - totalExpenses;
+  const totalExpenses = useMemo(() => expenses.reduce((sum, exp) => sum + exp.amount, 0), [expenses]);
+  const currentBalance = useMemo(() => initialBalance - totalExpenses, [totalExpenses]);
 
   const balanceTrend = "3.2%";
   const expenseTrend = expenses.length > 0 ? "8.4%" : "0.0%";
@@ -775,7 +788,13 @@ const Dashboard = ({
     return Array.from(new Set(expenses.map(ex => ex.category)));
   }, [expenses]);
 
-  const hasFilters = categoryFilter !== 'All' || startDate || endDate;
+  const hasFilters = useMemo(() => categoryFilter !== 'All' || startDate || endDate, [categoryFilter, startDate, endDate]);
+
+  const handleClearFilters = useCallback(() => {
+    setCategoryFilter('All');
+    setStartDate('');
+    setEndDate('');
+  }, [setCategoryFilter, setStartDate, setEndDate]);
 
   return (
     <div className="content">
@@ -843,15 +862,12 @@ const Dashboard = ({
       <TransactionList
         expenses={filteredExpenses}
         hasFilters={hasFilters}
-        onClearFilters={() => {
-          setCategoryFilter('All');
-          setStartDate('');
-          setEndDate('');
-        }}
+        onClearFilters={handleClearFilters}
       />
     </div>
   );
-};
+});
+Dashboard.displayName = 'Dashboard';
 
 // ─── Dashboard Page (authenticated route wrapper) ───
 function DashboardPage() {
@@ -888,7 +904,7 @@ function DashboardPage() {
     document.documentElement.setAttribute('data-theme', theme);
   }, [theme]);
 
-  const toggleTheme = () => setTheme(prev => prev === 'dark' ? 'light' : 'dark');
+  const toggleTheme = useCallback(() => setTheme(prev => prev === 'dark' ? 'light' : 'dark'), []);
 
   useEffect(() => {
     const fetchExpenses = async () => {
@@ -908,7 +924,7 @@ function DashboardPage() {
     fetchExpenses();
   }, []);
 
-  const addExpense = async (newExpense) => {
+  const addExpense = useCallback(async (newExpense) => {
     try {
       const response = await fetch('/api/expenses', {
         method: 'POST',
@@ -922,16 +938,19 @@ function DashboardPage() {
       console.error('Error adding expense:', err);
       alert('Failed to save expense. Please try again.');
     }
-  };
+  }, []);
 
-  const handleLogout = () => {
+  const handleLogout = useCallback(() => {
     localStorage.removeItem('user');
     navigate('/login', { replace: true });
-  };
+  }, [navigate]);
+
+  const openModal = useCallback(() => setIsModalOpen(true), []);
+  const closeModal = useCallback(() => setIsModalOpen(false), []);
 
   return (
     <div className="app-container">
-      <Sidebar onAddExpense={() => setIsModalOpen(true)} />
+      <Sidebar onAddExpense={openModal} />
       <div className="main-wrapper">
         <Navbar
           theme={theme}
@@ -955,7 +974,7 @@ function DashboardPage() {
           <Dashboard
             expenses={expenses}
             filteredExpenses={filteredExpenses}
-            onAddExpense={() => setIsModalOpen(true)}
+            onAddExpense={openModal}
             categoryFilter={categoryFilter}
             setCategoryFilter={setCategoryFilter}
             startDate={startDate}
@@ -967,7 +986,7 @@ function DashboardPage() {
       </div>
       <ExpenseModal
         isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
+        onClose={closeModal}
         onAdd={addExpense}
       />
       <Chatbot expenses={expenses} />
