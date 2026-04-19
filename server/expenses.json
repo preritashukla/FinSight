@@ -89,5 +89,12 @@
     "date": "2026-04-19",
     "note": "Lunch test",
     "id": 1776579210532
+  },
+  {
+    "amount": 500,
+    "category": "Food & Drink",
+    "date": "2026-04-19",
+    "note": "Testing toast and loading state",
+    "id": 1776599470705
   }
 ]
