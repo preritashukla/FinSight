@@ -96,7 +96,7 @@ const Sidebar = React.memo(({ onAddExpense }) => {
 Sidebar.displayName = 'Sidebar';
 
 // ─── Navbar ───
-const Navbar = React.memo(({ theme, onThemeToggle, userName, onLogout }) => {
+const Navbar = React.memo(({ theme, onThemeToggle, userName, onLogout, searchQuery, onSearchChange }) => {
   // Derive initials for avatar
   const initials = useMemo(() => userName
     ? userName.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2)
@@ -105,9 +105,13 @@ const Navbar = React.memo(({ theme, onThemeToggle, userName, onLogout }) => {
   return (
     <nav className="navbar">
       <div className="navbar-left">
-        <div className="navbar-search">
-          🔍 Search transactions, reports...
-        </div>
+        <input 
+          type="text" 
+          className="navbar-search" 
+          placeholder="🔍 Search transactions, reports..." 
+          value={searchQuery || ''}
+          onChange={(e) => onSearchChange(e.target.value)}
+        />
       </div>
       <div className="navbar-right">
         <ThemeToggle theme={theme} onToggle={onThemeToggle} />
@@ -460,8 +464,12 @@ const getMonthExpenses = (expenses, monthOffset = 0) => {
   const now = new Date();
   const target = new Date(now.getFullYear(), now.getMonth() - monthOffset, 1);
   return expenses.filter(ex => {
-    const d = new Date(ex.date);
-    return d.getMonth() === target.getMonth() && d.getFullYear() === target.getFullYear();
+    if (!ex.date) return false;
+    const parts = ex.date.split('-');
+    if (parts.length < 3) return false;
+    const year = parseInt(parts[0], 10);
+    const month = parseInt(parts[1], 10) - 1;
+    return month === target.getMonth() && year === target.getFullYear();
   });
 };
 
@@ -1101,7 +1109,7 @@ const Dashboard = React.memo(({
   setEndDate
 }) => {
   const initialBalance = 24562.00;
-  const totalExpenses = useMemo(() => expenses.reduce((sum, exp) => sum + exp.amount, 0), [expenses]);
+  const totalExpenses = useMemo(() => filteredExpenses.reduce((sum, exp) => sum + exp.amount, 0), [filteredExpenses]);
   const currentBalance = useMemo(() => initialBalance - totalExpenses, [totalExpenses]);
 
   const balanceTrend = "3.2%";
@@ -1143,7 +1151,7 @@ const Dashboard = React.memo(({
         </button>
       </div>
 
-      <SpendingPersonalityTag expenses={expenses} />
+      <SpendingPersonalityTag expenses={filteredExpenses} />
 
       <div className="stats-grid">
         <StatCard
@@ -1169,11 +1177,11 @@ const Dashboard = React.memo(({
         />
       </div>
 
-      <InsightsPanel expenses={expenses} />
+      <InsightsPanel expenses={filteredExpenses} />
 
       <div className="health-recs-grid">
-        <FinancialHealthScore expenses={expenses} />
-        <SmartRecommendations expenses={expenses} />
+        <FinancialHealthScore expenses={filteredExpenses} />
+        <SmartRecommendations expenses={filteredExpenses} />
       </div>
 
       <div className="filter-section">
@@ -1231,6 +1239,7 @@ function DashboardPage() {
   const [categoryFilter, setCategoryFilter] = useState('All');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
   const [toasts, setToasts] = useState([]);
 
   const addToast = useCallback((toast) => {
@@ -1245,11 +1254,14 @@ function DashboardPage() {
   const filteredExpenses = useMemo(() => {
     return expenses.filter(exp => {
       const matchesCategory = categoryFilter === 'All' || exp.category === categoryFilter;
-      const matchesStartDate = !startDate || new Date(exp.date) >= new Date(startDate);
-      const matchesEndDate = !endDate || new Date(exp.date) <= new Date(endDate);
-      return matchesCategory && matchesStartDate && matchesEndDate;
+      const matchesStartDate = !startDate || exp.date >= startDate;
+      const matchesEndDate = !endDate || exp.date <= endDate;
+      const matchesSearch = !searchQuery || 
+        (exp.note && exp.note.toLowerCase().includes(searchQuery.toLowerCase())) ||
+        exp.category.toLowerCase().includes(searchQuery.toLowerCase());
+      return matchesCategory && matchesStartDate && matchesEndDate && matchesSearch;
     });
-  }, [expenses, categoryFilter, startDate, endDate]);
+  }, [expenses, categoryFilter, startDate, endDate, searchQuery]);
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
@@ -1311,6 +1323,8 @@ function DashboardPage() {
           onThemeToggle={toggleTheme}
           userName={user.name}
           onLogout={handleLogout}
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
         />
         {isLoading ? (
           <div className="content">
