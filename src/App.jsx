@@ -581,10 +581,12 @@ FilterBar.displayName = 'FilterBar';
 
 // ─── Intelligence Engine (pure functions) ───
 const getCategoryTotals = (expenses) =>
-  expenses.reduce((acc, ex) => {
-    acc[ex.category] = (acc[ex.category] || 0) + ex.amount;
-    return acc;
-  }, {});
+  expenses
+    .filter(ex => ex.type === 'expense' || !ex.type)
+    .reduce((acc, ex) => {
+      acc[ex.category] = (acc[ex.category] || 0) + ex.amount;
+      return acc;
+    }, {});
 
 const getMonthExpenses = (expenses, monthOffset = 0) => {
   const now = new Date();
@@ -855,10 +857,12 @@ const CHART_COLORS = ['#818cf8', '#34d399', '#fbbf24', '#fb7185', '#c084fc', '#f
 // ─── Category Pie Chart ───
 const CategorySpendingChart = React.memo(({ expenses }) => {
   const data = useMemo(() => {
-    const categoryTotals = expenses.reduce((acc, exp) => {
-      acc[exp.category] = (acc[exp.category] || 0) + exp.amount;
-      return acc;
-    }, {});
+    const categoryTotals = expenses
+      .filter(exp => exp.type === 'expense' || !exp.type)
+      .reduce((acc, exp) => {
+        acc[exp.category] = (acc[exp.category] || 0) + exp.amount;
+        return acc;
+      }, {});
     return Object.keys(categoryTotals).map(name => ({
       name,
       value: categoryTotals[name]
@@ -904,7 +908,9 @@ const MonthlyExpensesChart = React.memo(({ expenses }) => {
   const data = useMemo(() => {
     if (!expenses || expenses.length === 0) return [];
 
-    const monthlyTotals = expenses.reduce((acc, exp) => {
+    const monthlyTotals = expenses
+      .filter(exp => exp.type === 'expense' || !exp.type)
+      .reduce((acc, exp) => {
       if (!exp.date) return acc;
       const nums = String(exp.date).match(/\d+/g);
       if (!nums || nums.length < 2) return acc;
