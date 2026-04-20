@@ -984,11 +984,11 @@ const MonthlyExpensesChart = React.memo(({ expenses }) => {
 });
 MonthlyExpensesChart.displayName = 'MonthlyExpensesChart';
 
-// ─── Chatbot ───
+// ─── Chatbot (AI-Powered via Gemini) ───
 const Chatbot = React.memo(({ expenses }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState([
-    { type: 'bot', text: "Hi! 👋 I'm your FinSight AI assistant. Ask me about your spending, or try one of the quick questions below!" }
+    { type: 'bot', text: "Hi! 👋 I'm your FinSight AI assistant, powered by Gemini. Ask me anything about your finances!" }
   ]);
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
@@ -1004,149 +1004,40 @@ const Chatbot = React.memo(({ expenses }) => {
 
   const suggestions = useMemo(() => [
     "Where do I spend the most?",
-    "What's my health score?",
+    "What's my financial health?",
     "How can I save money?",
     "Compare this month vs last"
   ], []);
 
-  const generateResponse = useCallback((question) => {
-    const q = question.toLowerCase();
-    const total = expenses.reduce((s, e) => s + e.amount, 0);
-    const catTotals = getCategoryTotals(expenses);
-    const sortedCategories = Object.entries(catTotals).sort((a, b) => b[1] - a[1]);
-    const topCategory = sortedCategories.length > 0 ? sortedCategories[0] : null;
-    const health = getFinancialHealthScore(expenses);
-    const recs = getSmartRecommendations(expenses);
-
-    // Monthly comparison
-    const currMonthExp = getMonthExpenses(expenses, 0);
-    const prevMonthExp = getMonthExpenses(expenses, 1);
-    const currMonthTotal = currMonthExp.reduce((s, e) => s + e.amount, 0);
-    const prevMonthTotal = prevMonthExp.reduce((s, e) => s + e.amount, 0);
-    const monthDiff = currMonthTotal - prevMonthTotal;
-    const monthPercent = prevMonthTotal !== 0 ? (monthDiff / prevMonthTotal) * 100 : 0;
-
-    // Personality
-    let personality = 'Smart Planner';
-    if (expenses.length < 5) personality = 'Budget Rookie';
-    else {
-      const disc = expenses.filter(e => ['Entertainment', 'Shopping'].includes(e.category));
-      const discRatio = disc.reduce((s, e) => s + e.amount, 0) / (total || 1);
-      if (discRatio > 0.35) personality = 'Impulsive Spender';
-      else {
-        const ess = expenses.filter(e => ['Housing', 'Utilities', 'Transport'].includes(e.category));
-        const essRatio = ess.reduce((s, e) => s + e.amount, 0) / (total || 1);
-        if (essRatio > 0.5 && essRatio <= 0.8) personality = 'Balanced Saver';
-        else {
-          const food = expenses.filter(e => e.category === 'Food & Drink' || e.category === 'Food and Drink');
-          if (food.reduce((s, e) => s + e.amount, 0) / (total || 1) > 0.25) personality = 'Foodie Enthusiast';
-        }
-      }
-    }
-
-    const greetings = [
-      "Hey there! 👋 I'm ready to help you understand your finances better. Try asking about your spending!",
-      "Hello! 😊 Your personal finance assistant is here. What would you like to know?",
-      "Hi! 💬 Ask me about your spending, savings, or health score — I'm all ears!"
-    ];
-    const thanks = [
-      "You're welcome! 😊 Happy to help you stay on top of your finances!",
-      "Anytime! 🙌 Smart tracking leads to smarter saving.",
-      "Glad I could help! 💡 Keep logging those expenses for better insights."
-    ];
-    const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
-
-    // Greeting
-    if (q.match(/^(hi|hey|hello|howdy|sup|yo)\b/))
-      return pick(greetings);
-
-    // Thank you
-    if (q.includes('thank'))
-      return pick(thanks);
-
-    // "Where do I spend the most?" / "top categories"
-    if (q.includes('spend the most') || q.includes('biggest expense') || q.includes('top spending') || q.includes('top categor') || q.includes('highest spending')) {
-      if (expenses.length === 0) return "📭 You haven't added any expenses yet! Start tracking to get insights.";
-      const breakdown = sortedCategories.slice(0, 3).map(([cat, amt], i) =>
-        `${['🥇','🥈','🥉'][i]} **${cat}**: ₹${amt.toLocaleString(undefined, { minimumFractionDigits: 2 })} (${((amt/total)*100).toFixed(1)}%)`
-      ).join('\n');
-      return `📊 Your top spending category is **${topCategory[0]}** at **₹${topCategory[1].toLocaleString()}**\n\nFull breakdown:\n${breakdown}`;
-    }
-
-    // "How can I save money?"
-    if (q.includes('save money') || q.includes('saving tips') || q.includes('reduce spending') || q.includes('cut costs') || q.includes('budget tip')) {
-      if (expenses.length === 0) return "💡 Start by tracking your expenses here – that's step one to saving!";
-      let tips = "💰 Personalised saving tips based on your data:\n\n";
-      const food = (catTotals['Food & Drink'] || 0) + (catTotals['Food and Drink'] || 0);
-      if (food / total > 0.25) tips += `🍔 **Food & Drink** is ${((food/total)*100).toFixed(0)}% of spending. Meal prepping could save ₹${Math.round(food*0.3).toLocaleString()}/month.\n\n`;
-      if (catTotals['Entertainment'] && catTotals['Entertainment'] / total > 0.1) tips += `🎬 **Entertainment** is ${((catTotals['Entertainment']/total)*100).toFixed(0)}% — swap one outing/week for a free activity.\n\n`;
-      if (catTotals['Shopping'] && catTotals['Shopping'] / total > 0.1) tips += `🛍️ **Shopping** is ${((catTotals['Shopping']/total)*100).toFixed(0)}% — use the 24-hour wait rule before purchases.\n\n`;
-      tips += "📋 **Rule of thumb:** 50% needs • 30% wants • 20% savings.";
-      return tips;
-    }
-
-    // "What's my total spending?"
-    if (q.includes('total spending') || q.includes('total expenses') || q.includes('how much have i spent') || q.includes('how much did i spend')) {
-      if (expenses.length === 0) return "📭 No expenses recorded yet. Start adding them!";
-      const variations = [
-        `💵 You've spent **₹${total.toLocaleString(undefined, { minimumFractionDigits: 2 })}** across **${expenses.length}** transactions in **${sortedCategories.length}** categories.`,
-        `📋 Total outflow: **₹${total.toLocaleString()}** from **${expenses.length}** recorded expenses across **${sortedCategories.length}** categories.`,
-        `🧾 Your spending totals **₹${total.toLocaleString()}** — spread over **${expenses.length}** transactions.`
-      ];
-      return pick(variations);
-    }
-
-    // "My financial health score" / "health score"
-    if (q.includes('health score') || q.includes('financial health') || q.includes('how healthy') || q.includes('my score')) {
-      if (expenses.length === 0) return "📊 Add some expenses first so I can calculate your financial health score!";
-      return `💳 Your **Financial Health Score** is **${health.score}/100** — Grade **${health.grade}** (${health.label}).\n\n• Savings score: ${health.breakdown.savings}/40\n• Distribution score: ${health.breakdown.distribution}/60\n\n${health.score >= 70 ? '✅ You\'re doing great!' : '⚠️ Check the Smart Recommendations panel for improvement tips.'}`;
-    }
-
-    // "What should I do?" / "recommendations"
-    if (q.includes('recommend') || q.includes('what should') || q.includes('advice') || q.includes('suggest') || q.includes('tips')) {
-      if (expenses.length === 0) return "💡 Start tracking expenses and I'll give you data-driven recommendations!";
-      const topRec = recs[0];
-      const others = recs.slice(1, 3).map(r => `• ${r.icon} **${r.title}**: ${r.desc}`).join('\n');
-      return `🎯 Top recommendation for you:\n\n${topRec.icon} **${topRec.title}**: ${topRec.desc}\n\n${others.length > 0 ? 'Other tips:\n' + others : ''}`;
-    }
-
-    // "How was last month?" / "monthly comparison"
-    if (q.includes('last month') || q.includes('this month') || q.includes('monthly') || q.includes('compare month')) {
-      if (expenses.length === 0) return "📭 No expense data yet to compare months.";
-      const arrow = monthDiff > 0 ? '📈 +' : monthDiff < 0 ? '📉 -' : '➡️ ';
-      const changeText = monthDiff === 0 ? 'No change' : `${arrow}${Math.abs(monthPercent).toFixed(1)}% (₹${Math.abs(monthDiff).toLocaleString()})` ;
-      return `📅 **This month**: ₹${currMonthTotal.toLocaleString()} across ${currMonthExp.length} transactions\n**Last month**: ₹${prevMonthTotal.toLocaleString()} across ${prevMonthExp.length} transactions\n\n${getTrendLabel(monthPercent, monthDiff)}. Change: ${changeText}`;
-    }
-
-    // Spending personality
-    if (q.includes('personality') || q.includes('spending type') || q.includes('what kind of spender') || q.includes('spender am i'))
-      return `🎭 Based on your patterns, you're a **${personality}**!\n\nThis is derived from the ratio of essential vs discretionary spending across all your recorded transactions.`;
-
-    // Fallback
-    const fallbacks = [
-      `Sorry, I'm a finance assistant — I can't help with that! 😅\n\nTry asking me something like:\n• "Where do I spend the most?"\n• "How can I save money?"\n• "What's my health score?"\n• "Compare this month vs last"\n• "Show my spending personality"`,
-      `Hmm, that's outside my expertise! I'm only able to help with your finances. 💸\n\nYou can ask me things like:\n• "What are my top categories?"\n• "Any savings tips?"\n• "What's my financial health?"\n• "How did last month compare?"`,
-    ];
-    return pick(fallbacks);
-  }, [expenses]);
-
-  const handleSend = useCallback((text) => {
-    const msgText = text || input.trim();
-    if (!msgText) return;
+  const handleSend = useCallback(async (text) => {
+    const msgText = (text || input).trim();
+    if (!msgText || isTyping) return;
 
     setMessages(prev => [...prev, { type: 'user', text: msgText }]);
     setInput('');
     setIsTyping(true);
 
-    setTimeout(() => {
-      const response = generateResponse(msgText);
-      setMessages(prev => [...prev, { type: 'bot', text: response }]);
+    try {
+      const response = await fetch('http://localhost:5000/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: msgText, expenses }),
+      });
+      const data = await response.json();
+      const reply = data.reply || data.error || '❌ Something went wrong. Please try again.';
+      setMessages(prev => [...prev, { type: 'bot', text: reply }]);
+    } catch {
+      setMessages(prev => [...prev, {
+        type: 'bot',
+        text: '❌ Could not reach the AI assistant. Make sure the server is running and your API key is set in `.env`.'
+      }]);
+    } finally {
       setIsTyping(false);
-    }, 800 + Math.random() * 600);
-  }, [input, generateResponse]);
+    }
+  }, [input, expenses, isTyping]);
 
   const handleKeyDown = (e) => {
-    if (e.key === 'Enter') handleSend();
+    if (e.key === 'Enter' && !e.shiftKey) handleSend();
   };
 
   return (
@@ -1162,10 +1053,10 @@ const Chatbot = React.memo(({ expenses }) => {
       {isOpen && (
         <div className="chat-window">
           <div className="chat-header">
-            <div className="chat-header-avatar">🤖</div>
+            <div className="chat-header-avatar">✨</div>
             <div className="chat-header-info">
               <h4>FinSight AI</h4>
-              <p>Your personal finance assistant</p>
+              <p>Powered by Groq · Your finance assistant</p>
             </div>
           </div>
 
@@ -1176,7 +1067,9 @@ const Chatbot = React.memo(({ expenses }) => {
                   msg.text.split('\n').map((line, k) => (
                     <span key={k}>
                       {line.split(/(\*\*.*?\*\*)/g).map((part, j) => (
-                        part.startsWith('**') && part.endsWith('**') ? <strong key={j}>{part.slice(2, -2)}</strong> : part
+                        part.startsWith('**') && part.endsWith('**')
+                          ? <strong key={j}>{part.slice(2, -2)}</strong>
+                          : part
                       ))}
                       {k < msg.text.split('\n').length - 1 && <br />}
                     </span>
@@ -1210,8 +1103,9 @@ const Chatbot = React.memo(({ expenses }) => {
               value={input}
               onChange={e => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
+              disabled={isTyping}
             />
-            <button className="chat-send-btn" onClick={() => handleSend()}>
+            <button className="chat-send-btn" onClick={() => handleSend()} disabled={isTyping}>
               <svg viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" /></svg>
             </button>
           </div>
