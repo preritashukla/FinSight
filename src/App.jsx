@@ -1124,8 +1124,8 @@ const Chatbot = React.memo(({ expenses }) => {
 
     // Fallback
     const fallbacks = [
-      `I can help with questions like:\n• "Where do I spend the most?"\n• "How can I save money?"\n• "What's my health score?"\n• "Compare this month vs last"\n• "Show my spending personality"`,
-      `Ask me something like:\n• "What are my top categories?"\n• "Any savings tips?"\n• "What's my financial health?"\n• "How did last month compare?"`,
+      `Sorry, I'm a finance assistant — I can't help with that! 😅\n\nTry asking me something like:\n• "Where do I spend the most?"\n• "How can I save money?"\n• "What's my health score?"\n• "Compare this month vs last"\n• "Show my spending personality"`,
+      `Hmm, that's outside my expertise! I'm only able to help with your finances. 💸\n\nYou can ask me things like:\n• "What are my top categories?"\n• "Any savings tips?"\n• "What's my financial health?"\n• "How did last month compare?"`,
     ];
     return pick(fallbacks);
   }, [expenses]);

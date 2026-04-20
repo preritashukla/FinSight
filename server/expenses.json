@@ -118,5 +118,13 @@
     "note": "Dinner with friends",
     "type": "expense",
     "id": 1776641594200
+  },
+  {
+    "amount": 200,
+    "category": "Food & Drink",
+    "date": "2026-04-20",
+    "note": "",
+    "type": "expense",
+    "id": 1776657250032
   }
 ]
