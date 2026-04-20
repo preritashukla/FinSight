@@ -1457,7 +1457,7 @@ function App() {
   return (
     <div className="app-container">
       {user && location.pathname !== '/login' && <Sidebar onAddExpense={openModal} />}
-      <div className={user && location.pathname !== '/login' ? "main-wrapper" : ""}>
+      <div className={user && location.pathname !== '/login' ? "main-wrapper" : "login-wrapper"}>
         {user && location.pathname !== '/login' && (
           <Navbar
             theme={theme}

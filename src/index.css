@@ -60,8 +60,11 @@
   box-sizing: border-box;
 }
 
-html {
+html,
+#root {
   scroll-behavior: smooth;
+  width: 100%;
+  min-height: 100vh;
 }
 
 body {
@@ -1345,6 +1348,11 @@ h1 {
 }
 
 /* ─── Login Page ─── */
+.login-wrapper {
+  width: 100%;
+  min-height: 100vh;
+}
+
 .login-page {
   min-height: 100vh;
   display: flex;
